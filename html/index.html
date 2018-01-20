@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Math Master</title>
+</head>
+<body style="background-color: #111111;">
+    <main id="game" style="margin: 0;position: absolute;top: 50%;left: 50%;transform: translate(-50%, -50%);"></main>
+    <script src="vendor/phaser.js"></script>
+	<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+	<script src="lib/phaser-kinetic-scrolling-plugin.min.js"></script>
+    <script src="lib/phaser-input.min.js"></script>
+	<script type="text/javascript">
+		var socket = io.connect('/');
+		socket.on('connect', function(data) {
+			socket.emit('join', 'I am the rabbit');
+			console.log( 'Welcome to the world' );
+		});
+	</script>
+    <script src="main.js"></script>
+</body>
+</html>
