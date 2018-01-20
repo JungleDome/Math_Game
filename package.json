@@ -2,6 +2,9 @@
   "name": "math_game",
   "version": "0.0.1",
   "description": "Math Board Game",
+  "engines": {
+    "node": "6.11.4"
+  },
   "dependencies": {
     "express": "^4.16.1",
     "node-uuid": "^1.4.8",
