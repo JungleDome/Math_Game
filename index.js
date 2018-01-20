@@ -10,12 +10,12 @@ var Question   = require('./question');
 var WinDow_lib = require('./WinDow_lib');
 
 //Configs.
-var con = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: ''
-  //database: 'Math_Game'
-});
+// var con = mysql.createConnection({
+//   host: 'localhost',
+//   user: 'root',
+//   password: ''
+//   //database: 'Math_Game'
+// });
 
 //Serve home page when requested.
 app.use(express.static(__dirname + '/html'));
