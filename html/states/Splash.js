@@ -6,13 +6,13 @@ Splash.prototype = {
     game.load.script('style', 'lib/style.js');
     game.load.script('mixins', 'lib/mixins.js');
     game.load.script('WebFont', 'vendor/webfontloader.js');
-    game.load.script('gamemenu','states/GameMenu.js');
+    game.load.script('gamemenu','states/gamemenu.js');
     game.load.script('login','states/login.js');
     game.load.script('register','states/register.js');
     game.load.script('game', 'states/Game.js');
-    game.load.script('gameover','states/GameOver.js');
-    game.load.script('credits', 'states/Credits.js');
-    game.load.script('options', 'states/Options.js');
+    game.load.script('gameover','states/gameover.js');
+    game.load.script('credits', 'states/credits.js');
+    game.load.script('options', 'states/options.js');
 	game.load.script('individualmatch', 'states/GAME_individual.js');
 	game.load.script('custommatch', 'states/GAME_custom.js');
 	game.load.script('map_findme', 'states/maps/findme.js');
