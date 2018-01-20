@@ -93,7 +93,6 @@ IndividualMatch.prototype = {
 
 		//TODO:Show match history
 		//TODO:get database
-		game.add.
 
 
         socket.emit('QUEUE.join',{id:getCookie("id"),socketID:getCookie("socketID")});
