@@ -16,11 +16,15 @@ var WinDow_lib = require('./WinDow_lib');
 //   password: ''
 //   //database: 'Math_Game'
 // });
-
+app.set('port', (process.env.PORT || 3000));
 //Serve home page when requested.
 app.use(express.static(__dirname + '/html'));
 app.get('/', function(req, res,next) {  
     res.sendFile(__dirname + '/html/index.html');
+});
+
+app.get('/hello', function(request, response) {
+    response.send("Hello!");
 });
 
 //Connects to mysql database.
