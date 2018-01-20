@@ -32,8 +32,8 @@ app.get('/', function(req, res,next) {
 // });
 
 //Binds to a port.
-server.listen(4004,function() {
-console.log('Port binding completed!');
+server.listen(process.env.PORT || 3000, function(){
+    console.log("Express server listening on port %d in %s mode", this.address().port, app.settings.env);
 });
 
 //Example:console.log(WinDow_lib.Array_search(SYS_PLAYER,1,"ID"));//
