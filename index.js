@@ -16,7 +16,7 @@ var WinDow_lib = require('./WinDow_lib');
 //   password: ''
 //   //database: 'Math_Game'
 // });
-app.set('port', (process.env.PORT || 3000));
+
 //Serve home page when requested.
 app.use(express.static(__dirname + '/html'));
 app.get('/', function(req, res,next) {  
@@ -36,7 +36,8 @@ app.get('/hello', function(request, response) {
 // });
 
 //Binds to a port.
-server.listen(process.env.PORT || 3000, function(){
+app.set('port', (process.env.PORT || 4004));
+server.listen(process.env.PORT || 4004, function(){
     console.log("Express server listening on port %d in %s mode", this.address().port, app.settings.env);
 });
 
@@ -89,21 +90,21 @@ io.on('connection', function(client) {
         console.log(io.engine.clientsCount + ' client left...');
     });
 
-    client.on('GAME.ClientTest',function(data){
-       console.log(data);
-        client.emit('GAME.ServerTest',{id:io.engine.clientsCount,socketID:client.id});
+    client.on('MENU.Handshake',function(data){
+        console.log("(✓) Connected to client" + "|ID:"+ data.id +"|socketID:"+ data.socketID);
     });
 
     client.on('PLAYER.login',function(data) {
-        connection.query('SELECT * FROM [player] WHERE PlayerUsername = ? AND PlayerPassword = ?',[data.PlayerUsername,data.PlayerPassword], function (error, results, fields) {
-            if (error) throw error;
+        console.log(data);
+        //connection.query('SELECT * FROM [player] WHERE PlayerUsername = ? AND PlayerPassword = ?',[data.PlayerUsername,data.PlayerPassword], function (error, results, fields) {
+            //if (error) throw error;
             //Failed to login
-            if (!results) {
-                client.emit('PLAYER.loginFailed');
-            } else {
-                client.emit('PLAYER.loginSuccess');
-            }
-        });
+            //if (!results) {
+            //     client.emit('PLAYER.loginFailed');
+            //} else {
+                client.emit('PLAYER.loginSuccess',{id:data.username,socketID:client.id});
+            // }
+        // });
     });
 
     client.on('PLAYER.register',function(data) {
@@ -118,11 +119,14 @@ io.on('connection', function(client) {
         });
     });
 
-    //TODO:Not working
     client.on('PLAYER.getStats',function(arg,cb) {
        var player = loadPlayerData(arg);
        cb(player);
        console.log(player);
+    });
+
+    client.on('PLAYER.getMatchHistory',function(arg) {
+        client.emit('PLAYER.matchHistory',{matchHistory:[{maps:"Riddle",player1:"Tim",player2:"John",moneyEarned:"100",rankEarned:"50",result:"Win"}]});
     });
 
     client.on('QUEUE.join',function(data) {
@@ -146,7 +150,7 @@ io.on('connection', function(client) {
                 console.log("Created room with RoomID:"+roomID);
                 client.join(roomID);
                 //PRODUCTION:SYS_MAP[Math.floor(Math.random()*3)]});
-				var newRoom = new Room({roomID:roomID,player1:player,status:'initializing',maps:SYS_MAP[2]});
+				var newRoom = new Room({roomID:roomID,player1:player,status:'initializing',maps:SYS_MAP[Math.floor(Math.random()*3)]});
 				SYS_ROOMS.push(newRoom);
                 console.log("--------------------------");
                 console.log("Room initiatorID:"+player.socketID);
@@ -694,9 +698,9 @@ io.on('connection', function(client) {
 
 	/*DEBUG:PLEASE REMOVE IT FOR PRODUCTION*/
 	function loadPlayerData(data) {
-        if (data.id == 1) {
+        if (data.id == "1") {
             var playerData = new Player({ID: 1, name: "tim", rank: 1201, coin: 1001, socketID: data.socketID});
-        } else if (data.id == 2) {
+        } else if (data.id == "2") {
             var playerData = new Player({ID: 2, name: "john", rank: 1202, coin: 1002, socketID: data.socketID});
         } else {
             var playerData = new Player({ID: 3, name: "Welcc", rank: 1203, coin: 1003, socketID: data.socketID});
@@ -704,16 +708,6 @@ io.on('connection', function(client) {
         //TODO: Fetch player database
         return playerData;
     }
-
-
-
-    /*
-     * Test Socket Event
-     */
-    client.on('TEST_JOINROOM',function(cb) {
-        this.join('TEST');
-        cb(io.sockets.adapter.rooms);
-    });
 
 
 

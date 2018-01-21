@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal">
+    <data-source name="mysql://ba9a193d278c1f:1b3073b4@us-cdbr-iron-east-05.cleardb.net/heroku_89ff13c40e1cc69?reconnect=true" uuid="dcdec921-f311-474f-a411-2951fb7077ae">
+      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" />
+      <secret-storage>master_key</secret-storage>
+      <first-sync>true</first-sync>
+      <user-name>ba9a193d278c1f</user-name>
+    </data-source>
+  </component>
+</project>

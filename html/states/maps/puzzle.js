@@ -340,6 +340,15 @@ Map_Puzzle.prototype = {
     },
 	
 	init: function() {
+        //Reset variable everytime it loads
+        Map_Puzzle.playerFontStyle = 3;
+        Map_Puzzle.scoreFontStyle = 3;
+        Map_Puzzle.boxFontStyle = 3;
+        Map_Puzzle.buttonFontStyle = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
+        Map_Puzzle.captionFontStyle = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        Map_Puzzle.gameStarted = false;
+
+        //Create all display element
 		this.menu  = game.make.text(40,55,"Menu",game.global.fontStyle);
 		this.menu.inputEnabled  = true;
 		this.menu.events.onInputUp.add(function() {

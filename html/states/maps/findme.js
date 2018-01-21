@@ -335,6 +335,16 @@ Map_FindMe.prototype = {
     },
 
 	init: function() {
+        //Reset variable everytime it loads
+        Map_FindMe.box = {width:game.world.width*0.15, height:game.world.width*0.15};
+        Map_FindMe.captionFontStyle = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        Map_FindMe.buttonFontStyle = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
+        Map_FindMe.defaultFontStyle = {font: '13pt opensans', align: 'center'};
+        Map_FindMe.backgroundColor = '#788DA7';
+        Map_FindMe.allowFlip = false;
+        Map_FindMe.lastQuestionNumber = 0;
+
+        //Create all display element
         this.menu  = game.make.text(40,55,"Menu",Map_FindMe.defaultFontStyle);
         this.menu.inputEnabled  = true;
         this.menu.events.onInputUp.add(function() {

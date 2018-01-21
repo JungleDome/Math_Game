@@ -6,25 +6,26 @@ Splash.prototype = {
     game.load.script('style', 'lib/style.js');
     game.load.script('mixins', 'lib/mixins.js');
     game.load.script('WebFont', 'vendor/webfontloader.js');
-    game.load.script('gamemenu','states/gamemenu.js');
-    game.load.script('login','states/login.js');
-    game.load.script('register','states/register.js');
-    game.load.script('game', 'states/Game.js');
-    game.load.script('gameover','states/gameover.js');
-    game.load.script('credits', 'states/credits.js');
-    game.load.script('options', 'states/options.js');
-	game.load.script('individualmatch', 'states/GAME_individual.js');
-	game.load.script('custommatch', 'states/GAME_custom.js');
-	game.load.script('map_findme', 'states/maps/findme.js');
-	game.load.script('map_puzzle', 'states/maps/puzzle.js');
-	game.load.script('map_riddle', 'states/maps/riddle.js');
-	game.load.script('map_tictactoe', 'states/maps/tictactoe.js');
+    game.load.script('GameMenu','states/gamemenu.js');
+    game.load.script('Login','states/login.js');
+    game.load.script('Register','states/register.js');
+    game.load.script('Game', 'states/Game.js');
+    game.load.script('GameOver','states/gameover.js');
+    game.load.script('Credits', 'states/credits.js');
+    game.load.script('Options', 'states/options.js');
+	game.load.script('IndividualMatch', 'states/GAME_individual.js');
+	game.load.script('CustomMatch', 'states/GAME_custom.js');
+	game.load.script('Map_FindMe', 'states/maps/findme.js');
+	game.load.script('Map_Puzzle', 'states/maps/puzzle.js');
+	game.load.script('Map_Riddle', 'states/maps/riddle.js');
+	game.load.script('Map_TicTacToe', 'states/maps/tictactoe.js');
   },
 
   loadBgm: function () {
     // thanks Kevin Macleod at http://incompetech.com/
     game.load.audio('dangerous', 'assets/bgm/Dangerous.mp3');
     game.load.audio('exit', 'assets/bgm/Exit the Premises.mp3');
+    game.load.audio('MainMenu-1', 'assets/bgm/Make It Shine By Sophonic (Music).mp3');
   },
   // varios freebies found from google image search
   loadImages: function () {
@@ -52,6 +53,7 @@ Splash.prototype = {
     this.logo       = game.make.sprite(game.world.centerX, 200, 'brand');
     this.status     = game.make.text(game.world.centerX, 380, 'Loading...', {fill: 'white'});
     utils.centerGameObjects([this.logo, this.status]);
+    game.stage.disableVisibilityChange = true;
   },
 
   preload: function () {

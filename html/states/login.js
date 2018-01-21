@@ -125,8 +125,19 @@ Login.prototype = {
 
         this.register_btn  = this.createButton(60,400,"Register",function() {game.state.start("Register");});
         this.login_btn  = this.createButton(230,400,"Login",function() {
-            //TODO:Verify credentials and proceed
+            console.log({username:this.username_text.value,password:this.password_text.value});
+            socket.emit('PLAYER.login',{username:this.username_text.value,password:this.password_text.value});
+        });
+
+        socket.on('PLAYER.loginSuccess',function (data) {
+            console.log("LOGIN:"+data.id);
+            document.cookie = "id="+data.id+";";
+            document.cookie = "socketID="+data.socketID+";";
             game.state.start("GameMenu");
+        });
+
+        socket.on('PLAYER.loginFailed',function (data) {
+
         });
     },
 

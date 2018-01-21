@@ -10,7 +10,7 @@ GameMenu.prototype = {
   
   addMenuOption: function(text, callback) {
     var optionStyle = { font: '30pt opensans', fill: 'white', align: 'left', stroke: 'rgba(0,0,0,0)', srokeThickness: 4};
-    var txt = game.make.text(game.world.centerX, (this.optionCount * 60) + 100, text, optionStyle);
+    var txt = game.make.text(game.world.centerX, (this.optionCount * 60) + 200, text, optionStyle);
     txt.anchor.setTo(0.5);
     txt.stroke = "rgba(0,0,0,0";
     txt.strokeThickness = 4;
@@ -32,6 +32,33 @@ GameMenu.prototype = {
     this.optionCount ++;
 	return txt;
   },
+
+    createMatchSlot: function(matchNumber,player) {
+        //Defining all variable
+        var sequenceTextStyle = { font: '20pt opensans', fill: 'black', align: 'left', stroke: 'rgba(25,25,25,0.3)', strokeThickness: 4};
+        var textStyle = {font: '22pt opensans', align: 'left'};
+        var width = game.world.width*0.8;
+        var height = 50;
+        var color = 0xE5FFE5;
+
+        //Make a container
+        var matchSlotContainer = game.add.group();
+        //Draw background
+        var background = game.add.graphics(0, 0);
+        background.beginFill(color, 1);
+        background.bounds = new PIXI.Rectangle(0, 0, width, height);
+        background.drawRoundedRect(0, 0, width, height,4);
+
+        //Draw text
+        var sequenceText 	 = game.make.text(width*0.05,10,String(matchNumber).concat("."),sequenceTextStyle);
+        var playerText  	 = game.make.text(width*0.2,10,player,textStyle);
+
+        matchSlotContainer.addMultiple([background,sequenceText,playerText]);
+        matchSlotContainer.x = game.world.centerX - (matchSlotContainer.width/2);
+        matchSlotContainer.y = (matchNumber * height) + (matchNumber * 7) + 100;
+
+        return matchSlotContainer;
+    },
   
   init: function () {
 	// this.game.ListView = this.game.plugins.add(Phaser.Plugin.KineticScrolling);
@@ -70,23 +97,32 @@ GameMenu.prototype = {
     this.copyrightText.setShadow(3, 3, 'rgba(0,0,0,0.5)', 5);
     this.rank_ico      = game.make.sprite(game.world.width*0.9, 50, 'ranking-ico');
 	
-	//Elements for player stats container//
-	this.statsTitle     = game.make.text(game.world.centerX, 60, "PLAYER STATS",fontStyle);
-	this.playedTitle    = game.make.text(game.world.centerX, 100, "LAST 10 GAMES",fontStyle);
-	//this.playerHistory  = game.make.text();
-	
 	//Elements for global ranking container//
 	this.rankTitle      = game.make.text(game.world.centerX, 60, "GLOBAL RANKING",fontStyle);
 	
-	utils.centerGameObjects([this.logo,this.username,this.coin_ico,this.coin_text,this.trophy_ico,this.trophy_text,this.rank_ico,this.copyrightText,this.statsTitle,this.playedTitle,this.rankTitle]);
+	utils.centerGameObjects([this.logo,this.username,this.coin_ico,this.coin_text,this.trophy_ico,this.trophy_text,this.rank_ico,this.copyrightText,this.rankTitle]);
   },
 
   create: function () {
-
+      function getCookie(cname) {
+          var name = cname + "=";
+          var decodedCookie = decodeURIComponent(document.cookie);
+          var ca = decodedCookie.split(';');
+          for(var i = 0; i <ca.length; i++) {
+              var c = ca[i];
+              while (c.charAt(0) == ' ') {
+                  c = c.substring(1);
+              }
+              if (c.indexOf(name) == 0) {
+                  return c.substring(name.length, c.length);
+              }
+          }
+          return "";
+      }
 	//Handling background music
-    if (music.name !== "dangerous" && gameOptions.playMusic) {
+    if (music.name !== "MainMenu-1" && gameOptions.playMusic) {
       music.stop();
-      music = game.add.audio('dangerous');
+      music = game.add.audio('MainMenu-1');
       music.loop = true;
       music.play();
     }
@@ -105,9 +141,9 @@ GameMenu.prototype = {
 	
 	//Create  multiple container to contains element//
 	this.menuContainer = game.add.group();
-	this.statsContainer = game.add.group();
 	this.rankingContainer = game.add.group();
 	this.menuContainer.name = "Menu_Container";
+    this.rankingContainer.name = "Rank_Container";
 	//Adding evey element into the stage//
 	this.menuContainer.addMultiple([this.copyrightText,this.username,this.coin_text,this.trophy_text,this.logo,this.coin_ico,this.trophy_ico,this.rank_ico]);
 	this.logo.scale.setTo(0.5);
@@ -115,19 +151,15 @@ GameMenu.prototype = {
 	this.trophy_ico.scale.setTo(0.1);
 	this.rank_ico.scale.setTo(0.2);
 
-	this.statsContainer.addMultiple([this.statsTitle,this.playedTitle]);
-	this.statsContainer.add(this.addMenuOption('Back', function () {
-		this.menuContainer.visible = true;
-		this.statsContainer.visible = false;
-	}));
-	this.statsContainer.visible = false;
-	
-	
+
+
 	this.rankingContainer.addMultiple([this.rankTitle]);
-	this.rankingContainer.add(this.addMenuOption('Back', function () {
-		this.menuContainer.visible = true;
-		this.rankingContainer.visible = false;
-	}));
+	this.ranking_backBtn = this.addMenuOption('Back', function () {
+        this.menuContainer.visible = true;
+        this.rankingContainer.visible = false;
+    });
+	this.ranking_backBtn.y = 500;
+	this.rankingContainer.add(this.ranking_backBtn);
 	this.rankingContainer.visible = false;
 	
 	//Adding menu buttons using custom function//
@@ -137,10 +169,6 @@ GameMenu.prototype = {
 	}));
 	this.menuContainer.add(this.addMenuOption('Custom Match', function () {
 		this.game.state.start("CustomMatch");
-	}));
-	this.menuContainer.add(this.addMenuOption('Stats', function () {
-		this.statsContainer.visible = true;
-		this.menuContainer.visible = false;
 	}));
 
 	this.rank_ico.inputEnabled = true;
@@ -152,16 +180,14 @@ GameMenu.prototype = {
     //this.menuContainer.add(this.addMenuOption('Options', function () {game.state.start("Options");}));
     //this.menuContainer.add(this.addMenuOption('Credits', function () {game.state.start("Credits");}));
 
-	  socket.emit('GAME.ClientTest','Client connected');
-	  socket.on('GAME.ServerTest',function(data){
-	  	game.global.id = data.id;
-	  	game.global.socketID = data.socketID;
-	  	console.log(data);
-	  	console.log("(✓) Connected to server");
-  		document.cookie = "id="+data.id;
-	  	document.cookie = "socketID="+data.socketID+";";
+      game.global.id = getCookie("id");
+      game.global.socketID = getCookie("socketID");
 
-  		socket.emit('PLAYER.getStats',{id:data.id,socketID:data.socketID},function(data) {
+	  socket.emit('MENU.Handshake',{id:game.global.id,socketID:game.global.socketID},function () {
+          console.log("(✓) Connected to server");
+      });
+
+  		socket.emit('PLAYER.getStats',{id:game.global.id,socketID:game.global.socketID},function(data) {
             game.world.forEach(function (children) {
             	if (children.name === "Menu_Container") {
             		children.forEach(function (children2) {
@@ -177,13 +203,18 @@ GameMenu.prototype = {
                             children2.update();
 						}
                     });
-				}
+				} else if (children.name === "Rank_Container") {
+                    this.top1 = GameMenu.prototype.createMatchSlot(1,data.name);
+                    this.top2 = GameMenu.prototype.createMatchSlot(2,"Micheal");
+                    this.top3 = GameMenu.prototype.createMatchSlot(3,"WWWWWWW");
+            	    children.addMultiple([this.top1,this.top2,this.top3]);
+            	    children.update();
+                }
 
             });
 		console.log("(✓) Player details showed");
 		  console.log(data);
 	  	});
-	  });
 
       // socket.emit('SYS_LATENCY', Date.now(), function(startTime) {
       //     var latency = Date.now() - startTime;
@@ -191,13 +222,6 @@ GameMenu.prototype = {
       // });
 
 	  console.log(this.socketID);
-
-
-
-	  socket.emit('TEST_JOINROOM',function(data) {
-	  		console.log(data);
-	  });
-
   },
   
   

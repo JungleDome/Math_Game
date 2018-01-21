@@ -162,6 +162,16 @@ Map_Riddle.prototype = {
     },
 
 	init: function() {
+        //Reset variable everytime it loads
+        Map_Riddle.playerFontStyle = 3;
+        Map_Riddle.scoreFontStyle = 3;
+        Map_Riddle.backgroundColor = '#947AAC';
+        Map_Riddle.defaultFontStyle = {font: '13pt opensans', align: 'center'};
+        Map_Riddle.buttonFontStyle = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
+        Map_Riddle.captionFontStyle = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        Map_Riddle.blockInput = false;
+
+        //Create all display element
         this.menu  = game.make.text(40,55,"Menu",Map_Riddle.defaultFontStyle);
         this.menu.inputEnabled  = true;
         this.menu.events.onInputUp.add(function() {

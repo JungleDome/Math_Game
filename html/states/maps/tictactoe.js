@@ -297,6 +297,16 @@ Map_TicTacToe.prototype = {
     },
 
     init: function() {
+        //Reset variable everytime it loads
+        Map_TicTacToe.defaultFontStyle  = {font: '13pt opensans', align: 'center', fill: '#000000'};
+        Map_TicTacToe.buttonFontStyle = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
+        Map_TicTacToe.captionFontStyle = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        Map_TicTacToe.lastQuestionNumber = 0;
+        Map_TicTacToe.backgroundColor = '#788DA7';
+        Map_TicTacToe.gameStarted = false;
+        Map_TicTacToe.isQuestionAnswered = true;
+
+        //Create all display element
         var fontStyle = {font: '13pt opensans', align: 'center'};
         this.menu  = game.make.text(40,55,"Menu",fontStyle);
         this.menu.inputEnabled  = true;
