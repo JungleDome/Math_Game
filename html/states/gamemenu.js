@@ -120,7 +120,7 @@ GameMenu.prototype = {
           return "";
       }
 	//Handling background music
-    if (music.name !== "MainMenu-1" && gameOptions.playMusic) {
+    if (music.name !== "MainMenu-1" ) {
       music.stop();
       music = game.add.audio('MainMenu-1');
       music.loop = true;
