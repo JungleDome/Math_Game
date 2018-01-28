@@ -11,7 +11,7 @@ module.exports = function(args) {
         if (args.rank) {var rank = args.rank;}
         else {console.trace('No player ranking point provided.');}
 
-        if (args.coin) {var coin = args.coin;}
+        if (args.coin!==null) {var coin = args.coin;}
         else {console.trace('No player coin provided.');}
 
         if (args.history) {var history = args.history;}
@@ -25,12 +25,18 @@ module.exports = function(args) {
             coin:coin,
             history:history,
 			
-			changeRank: function(args) {
-				this.rank = args;
+			addRank: function(amount) {
+				this.rank += amount;
 			},
-			changeCoin: function(args) {
-				this.coin = args;
-			},
+            minusRank: function(amount) {
+                this.rank -= amount;
+            },
+            addCoin: function(amount) {
+                this.coin += amount;
+            },
+            minusCoin: function(amount) {
+                this.coin -= amount;
+            },
 			changeHistory: function(args) {
 				this.history = args;
 			}

@@ -10,12 +10,12 @@ var Question   = require('./question');
 var WinDow_lib = require('./WinDow_lib');
 
 //Configs.
-// var con = mysql.createConnection({
-//   host: 'localhost',
-//   user: 'root',
-//   password: ''
-//   //database: 'Math_Game'
-// });
+var con = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: '',
+  database: 'mathgame1'
+});
 
 //Serve home page when requested.
 app.use(express.static(__dirname + '/html'));
@@ -28,12 +28,12 @@ app.get('/hello', function(request, response) {
 });
 
 //Connects to mysql database.
-// con.connect(function(err) {
-//     if (err) throw err;
-//     console.log('Database connected!');
-//     console.log('Server started up!');
-//     console.log('-------------------------------------');
-// });
+con.connect(function(err) {
+    if (err) throw err;
+    console.log('Database connected!');
+    console.log('Server started up!');
+    console.log('-------------------------------------');
+});
 
 //Binds to a port.
 app.set('port', (process.env.PORT || 4004));
@@ -91,24 +91,25 @@ io.on('connection', function(client) {
     });
 
     client.on('MENU.Handshake',function(data){
-        console.log("(✓) Connected to client" + "|ID:"+ data.id +"|socketID:"+ data.socketID);
+        console.log("Connected to client" + "|ID:"+ data.id +"|socketID:"+ data.socketID);
     });
 
     client.on('PLAYER.login',function(data) {
         console.log(data);
-        //connection.query('SELECT * FROM [player] WHERE PlayerUsername = ? AND PlayerPassword = ?',[data.PlayerUsername,data.PlayerPassword], function (error, results, fields) {
-            //if (error) throw error;
-            //Failed to login
-            //if (!results) {
-            //     client.emit('PLAYER.loginFailed');
-            //} else {
-                client.emit('PLAYER.loginSuccess',{id:data.username,socketID:client.id});
-            // }
-        // });
+        con.query('SELECT * FROM player WHERE PlayerUsername = ? AND PlayerPassword = ?',[data.username,data.password], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length>0) {
+                var player = new Player({socketID:client.id,ID:results[0].PlayerID,name:results[0].PlayerUsername,rank:results[0].PlayerRanking,coin:results[0].PlayerCoin});
+                console.log(player);
+                client.emit('PLAYER.loginSuccess',{id:player.ID,socketID:player.socketID});
+            } else {
+                client.emit('PLAYER.loginFailed');
+            }
+        });
     });
 
     client.on('PLAYER.register',function(data) {
-        connection.query('INSERT INTO [player] (PlayerUsername,PlayerPassword) VALUES (?,?)',[data.PlayerUsername,data.PlayerPassword], function (error, results, fields) {
+        con.query('INSERT INTO player (PlayerUsername,PlayerPassword,PlayerRanking,PlayerCoin) VALUES (?,?,1000,0)',[data.username,data.password], function (error, results, fields) {
             if (error) throw error;
             //Failed to login
             if (results.affectedRows !== 1) {
@@ -120,13 +121,62 @@ io.on('connection', function(client) {
     });
 
     client.on('PLAYER.getStats',function(arg,cb) {
-       var player = loadPlayerData(arg);
-       cb(player);
-       console.log(player);
+        con.query('SELECT * FROM player WHERE PlayerID = ?',[arg.id], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length>0) {
+                var player = new Player({socketID:arg.socketID,ID:results[0].PlayerID,name:results[0].PlayerUsername,rank:results[0].PlayerRanking,coin:results[0].PlayerCoin});
+                console.log(player);
+                cb(player);
+            } else {
+                console.trace('ERROR-(PLAYER.getStats): Cant get player status');
+            }
+        });
     });
 
     client.on('PLAYER.getMatchHistory',function(arg) {
-        client.emit('PLAYER.matchHistory',{matchHistory:[{maps:"Riddle",player1:"Tim",player2:"John",moneyEarned:"100",rankEarned:"50",result:"Win"}]});
+        con.query('SELECT * FROM game WHERE PlayerID = ?',[arg.id], function (error, results, fields) {
+            if (error) throw error;
+            if (results.length>0) {
+                for (var i=0;i<results.length;i++) {
+                    // client.emit('PLAYER.matchHistory', {
+                    //     matchHistory: [{
+                    //         maps: "Riddle",
+                    //         player1: "Tim",
+                    //         player2: "John",
+                    //         moneyEarned: "100",
+                    //         rankEarned: "50",
+                    //         result: "Win"
+                    //     }]
+                    // });
+                    client.emit('PLAYER.matchHistory', {
+                        matchHistory: [{
+                            maps: results[i].GameMap,
+                            datetime: results[i].GameDateTime,
+                            moneyEarned: results[i].GameCoinEarned,
+                            rankEarned: results[i].GameRankEarned,
+                            points: results[i].GamePoints,
+                            result: results[i].GameResult
+                        }]
+                    });
+                }
+            } else {
+                //No match history
+            }
+        });
+    });
+
+    client.on('QUEUE.joinCustom',function(data) {
+        console.log("-----START--CUSTOM--QUEUE-----");
+        var player = loadPlayerData(data);
+        SYS_PLAYER.push(player);
+        console.log("-------------------------------");
+        var roomID = SYS_ROOMS.length+1;
+        console.log("Created room with RoomID:"+roomID);
+        client.join(roomID);
+        var fakePlayer2 = loadPlayerData("0");
+        var newRoom = new Room({roomID:roomID,player1:player,player2:fakePlayer2,status:'initializing',maps:SYS_MAP[data.mapID]});
+        SYS_ROOMS.push(newRoom);
+        client.emit('QUEUE.found',{roomID:roomID});
     });
 
     client.on('QUEUE.join',function(data) {
@@ -175,6 +225,23 @@ io.on('connection', function(client) {
     client.on('QUEUE.leave',function(data) {
         console.log("Queue Remove:"+data.id);
         WinDow_lib.Array_remove(SYS_QUEUE,parseInt(data.id),"ID");
+    });
+
+    client.on('ROOM.joinCustom',function(data) {
+        var roomID = data.roomID;
+        client.join(roomID);
+        console.log("Someone joined the room :"+roomID);
+        WinDow_lib.Array_remove(SYS_QUEUE,parseInt(data.id),"ID");
+        console.log("Initializing room "+roomID);
+
+        var room       = WinDow_lib.Array_search(SYS_ROOMS,parseInt(roomID),"roomID");
+        room.status    = "Loading";
+        room.initRoom();
+        room.player2Ready   = true;
+        room.isSinglePlayer = true;
+
+        io.in(roomID).emit('GAME.startload',{mapName:room.maps});
+        loadQuestion(room);
     });
 
     client.on('ROOM.join',function(data) {
@@ -283,6 +350,10 @@ io.on('connection', function(client) {
                 } else if (room.maps === "Map_FindMe") {
                     if (!room.isTimeEnd()) {
                         io.in(room.roomID).emit("GAME.tick", {timerText: room.getTimeRemain()});
+                        io.in(room.roomID).emit('GAME.updatePoint', {
+                            player1Points: room.player1Points,
+                            player2Points: room.player2Points
+                        });
                         console.log('Room '+room.roomID+' | Time Left:'+room.getTimeRemain());
                     } else {
                         io.in(room.roomID).emit("GAME.stop", {reason: 'Times Up!'});
@@ -342,8 +413,44 @@ io.on('connection', function(client) {
                     this.answeringQuestion = WinDow_lib.Array_search(this.room.questions, parseInt(questionID), "questionID");
                     isCorrect = this.answeringQuestion.checkAnswer(data.answer);
                 } else {
-                    //TODO:Calculate the total digit for the row/column
-                    //data.gameLocation
+                    switch (data.gameLocation) {
+                        case "1_6":
+                            this.number1 = this.room.getPattern()[0][1].split("_")[1]?this.room.getPattern()[0][1].split("_")[1]:"1";
+                            this.operator1 = this.room.getPattern()[1][1].split("_")[1];
+                            this.number2 = this.room.getPattern()[2][1].split("_")[1]?this.room.getPattern()[2][1].split("_")[1]:"1";
+                            this.operator2 = this.room.getPattern()[3][1].split("_")[1];
+                            this.number3 = this.room.getPattern()[4][1].split("_")[1]?this.room.getPattern()[4][1].split("_")[1]:"1";
+                            this.answer = eval(this.number1+this.operator1+this.number2+this.operator2+this.number3);
+                            console.log(this.answer);
+                            if (this.answer = data.answer) {
+                                isCorrect = true;
+                            }
+                            break;
+                        case "3_6":
+                            this.number1 = this.room.getPattern()[0][3].split("_")[1]?this.room.getPattern()[0][3].split("_")[1]:"1";
+                            this.operator1 = this.room.getPattern()[1][3].split("_")[1];
+                            this.number2 = this.room.getPattern()[2][3].split("_")[1]?this.room.getPattern()[2][3].split("_")[1]:"1";
+                            this.operator2 = this.room.getPattern()[3][3].split("_")[1];
+                            this.number3 = this.room.getPattern()[4][3].split("_")[1]?this.room.getPattern()[4][3].split("_")[1]:"1";
+                            this.answer = eval(this.number1+this.operator1+this.number2+this.operator2+this.number3);
+                            console.log(this.answer);
+                            if (this.answer = data.answer) {
+                                isCorrect = true;
+                            }
+                            break;
+                        case "6_1":
+                            this.number1 = this.room.getPattern()[1][0].split("_")[1]?this.room.getPattern()[1][0].split("_")[1]:"1";
+                            this.operator1 = this.room.getPattern()[1][1].split("_")[1];
+                            this.number2 = this.room.getPattern()[1][2].split("_")[1]?this.room.getPattern()[1][2].split("_")[1]:"1";
+                            this.operator2 = this.room.getPattern()[1][3].split("_")[1];
+                            this.number3 = this.room.getPattern()[1][4].split("_")[1]?this.room.getPattern()[1][4].split("_")[1]:"1";
+                            this.answer = eval(this.number1+this.operator1+this.number2+this.operator2+this.number3);
+                            console.log(this.answer);
+                            if (this.answer = data.answer) {
+                                isCorrect = true;
+                            }
+                            break;
+                    }
                 }
             } else if (this.room.maps==="Map_FindMe") {
                 questionID = data.questionID;
@@ -383,7 +490,6 @@ io.on('connection', function(client) {
                     } else if (this.room.maps==="Map_FindMe") {
                         io.in(this.room.player1.socketID).emit('PLAYER.correct');
                     } else if (this.room.maps==="Map_Riddle") {
-                        //???
                         io.in(this.room.roomID).emit("PLAYER.correct", {choice: data.answer});
                         this.room.addRounds();
                         setTimeout(function(room2) {
@@ -477,10 +583,11 @@ io.on('connection', function(client) {
                     // this.room.addRounds();
                     // io.in(this.room.roomID).emit('GAME.updateQuestion', {rounds: this.room.rounds});
                     //PRODUCTION:
-                    // this.room.addRounds();
-                    // setTimeout(function(room2) {
-                    //     io.in(room2.roomID).emit('GAME.updateQuestion', {rounds: room2.rounds});
-                    // },3000,this.room);
+                    this.room.addRounds();
+                    io.in(this.room.roomID).emit('GAME.updatePoint', {player1Points: this.room.player1Points, player2Points: this.room.player2Points});
+                    setTimeout(function(room2) {
+                        io.in(room2.roomID).emit('GAME.updateQuestion', {rounds: room2.rounds});
+                    },3000,this.room);
                 }
             } else if (this.room.maps==="Map_TicTacToe") {
                 io.in(this.room.roomID).emit("GAME.updatePattern", {pattern: this.room.getPattern()});
@@ -490,6 +597,7 @@ io.on('connection', function(client) {
                 if (this.room.isBothPlayerWrong()) {
                     io.in(this.room.roomID).emit('GAME.updateQuestion');
                 }
+
             }
 
             if (this.room.isGameFinish()) {
@@ -574,6 +682,65 @@ io.on('connection', function(client) {
             if (this.result.win && this.result.lose) {
                 io.in(this.result.win.socketID).emit('GAME.win');
                 io.in(this.result.lose.socketID).emit('GAME.lose');
+
+
+                if (!room.isSinglePlayer) {
+                    //Update player data
+                    var baseMoney = 20;
+                    var additionalMoney = Math.floor(((room.timeLimit-(new Date() - room.startTime))/1000)/15);
+                    var baseRank = 50;
+                    var additionalRank = Math.floor(((room.timeLimit-(new Date() - room.startTime))/1000)/30);
+                    var winnerEarnedCoin = 50;
+                    var winnerEarnedRank = baseRank + additionalRank;
+                    var loserEarnedCoin = 40;
+                    var loserReducedRank = baseRank + additionalRank;
+                    this.result.win.addCoin(winnerEarnedCoin);
+                    this.result.win.addRank(winnerEarnedRank);
+                    this.result.lose.addCoin(loserEarnedCoin);
+                    this.result.lose.minusRank(loserReducedRank);
+
+
+                    console.log(winnerEarnedCoin);
+                    con.query('UPDATE player SET PlayerRanking = ? ,PlayerCoin = ? WHERE PlayerID = ?', [this.result.win.rank, this.result.win.coin, this.result.win.ID], function (error, results, fields) {
+                        if (error) throw error;
+                        if (results.affectedRows !== 1) {
+                            console.log('Updated player info');
+                        }
+                    });
+                    console.log(this.result.lose.rank);
+                    con.query('UPDATE player SET PlayerRanking = ? ,PlayerCoin = ? WHERE PlayerID = ?', [this.result.lose.rank, this.result.lose.coin, this.result.lose.ID], function (error, results, fields) {
+                        if (error) throw error;
+                        if (results.affectedRows !== 1) {
+                            console.log('Updated player info');
+                        }
+                    });
+                    var dateString = String(new Date().getDate()).concat('-').concat(new Date().getMonth()).concat('-').concat(new Date().getYear());
+                    var winnerGamePoint = 0;
+                    if (this.result.win.ID==room.player1.ID) {
+                        winnerGamePoint = room.player1Points;
+                    } else if (this.result.win.ID==room.player2.ID) {
+                        winnerGamePoint = room.player2Points;
+                    }
+                    con.query('INSERT INTO game (GameDateTime,GameMap,GamePoints,GameRankEarned,GameCoinEarned,GameResult,PlayerID) VALUES (?,?,?,?,?,?,?)', [dateString,room.maps,winnerGamePoint, winnerEarnedRank,winnerEarnedCoin,"Win", this.result.win.ID], function (error, results, fields) {
+                        if (error) throw error;
+                        if (results.affectedRows !== 1) {
+                            console.log('Updated winner game history');
+                        }
+                    });
+                    var loserGamePoint = 0;
+                    if (this.result.lose.ID==room.player1.ID) {
+                        loserGamePoint = room.player1Points;
+                    } else if (this.result.lose.ID==room.player2.ID) {
+                        loserGamePoint = room.player2Points;
+                    }
+                    con.query('INSERT INTO game (GameDateTime,GameMap,GamePoints,GameRankEarned,GameCoinEarned,GameResult,PlayerID) VALUES (?,?,?,?,?,?,?)', [dateString,room.maps,loserGamePoint, loserReducedRank,loserEarnedCoin,"Lose", this.result.lose.ID], function (error, results, fields) {
+                        if (error) throw error;
+                        if (results.affectedRows !== 1) {
+                            console.log('Updated loser game history');
+                        }
+                    });
+                    console.log('Player info should be changed');
+                }
             } else if (this.result.draw) {
                 io.in(room.player1.socketID).emit('GAME.draw');
                 io.in(room.player2.socketID).emit('GAME.draw');
@@ -594,32 +761,101 @@ io.on('connection', function(client) {
         //TTT    -15Q+4Q = 19Q
         //Puzzle -8Q+4Q  = 12Q
             var ListOfQuestions = [];
-            //PRODUCTION:*****************************************
-            // connection.query('SELECT * FROM [question] WHERE QuestionType = ? ORDER BY RAND() LIMIT ?',[room.maps,questionAmount], function (error, results, fields) {
+            // con.query('SELECT * FROM question WHERE QuestionType = ? LIMIT ?',["puzzle",6], function (error, results, fields) {
             //     if (error) throw error;
-            //     if (results) {
-            //         for (var i=0;i<results.length-1;i++) {
-            //              var choices = results.questionChoice1?[results.questionChoice1,results.questionChoice2,results.questionChoice3,results.questionChoice4]:null;
-            //              WinDow_lib.Array_shuffle(choices);
+            //     if (results.length>0) {
+            //         for (var i=0;i<results.length;i++) {
+            //             console.log(results[i]);
+            //             var choices = results[i].QuestionChoices.split[','];
+            //             console.log(results[i].QuestionChoices);
             //
-            //              var question = new Question({questionID:results.questionID,questionFileName:questionType+'/'+results.questionFilePath,questionAnswer:results.questionAnswer,questionChoices:choices});
-            //              ListOfQuestions.push(question);
+            //             var question = new Question({questionID:results[i].QuestionID,questionFileName:results[i].QuestionFilePath,questionAnswer:results[i].QuestionAnswer,questionHint:results[i].QuestionHint,questionChoices:choices});
+            //             ListOfQuestions.push(question);
             //         }
             //     } else {
-            //      console.trace('No question fetched!');
+            //         console.trace('No question fetched!');
             //     }
             // });
+            //PRODUCTION:*****************************************
+        // switch (room.maps) {
+        //     case "Map_Puzzle":
+        //         con.query('SELECT * FROM question WHERE QuestionType = ? ORDER BY RAND() LIMIT ?',["puzzle",6], function (error, results, fields) {
+        //             if (error) throw error;
+        //             if (results.length>0) {
+        //                 for (var i=0;i<results.length;i++) {
+        //                     var choices = results[i].QuestionChoices.split[','];
+        //
+        //                     var question = new Question({questionID:results[i].QuestionID,questionFileName:results[i].QuestionFilePath,questionAnswer:results[i].QuestionAnswer,questionHint:results[i].QuestionHint,questionChoices:choices});
+        //                     ListOfQuestions.push(question);
+        //                 }
+        //             } else {
+        //                 console.trace('No question fetched!');
+        //             }
+        //         });
+        //         break;
+        //     case "Map_Riddle":
+        //         con.query('SELECT * FROM question WHERE QuestionType = ? ORDER BY RAND() LIMIT ?',["riddle",15], function (error, results, fields) {
+        //             if (error) throw error;
+        //             if (results) {
+        //                 for (var i=0;i<results.length;i++) {
+        //                     var choices = results.questionChoice1?[results.questionChoice1,results.questionChoice2,results.questionChoice3,results.questionChoice4]:null;
+        //                     WinDow_lib.Array_shuffle(choices);
+        //
+        //                     var question = new Question({questionID:results.questionID,questionFileName:questionType+'/'+results.questionFilePath,questionAnswer:results.questionAnswer,questionChoices:choices});
+        //                     ListOfQuestions.push(question);
+        //                 }
+        //             } else {
+        //                 console.trace('No question fetched!');
+        //             }
+        //         });
+        //         break;
+        //     case "Map_TicTacToe":
+        //         con.query('SELECT * FROM question WHERE QuestionType = ? ORDER BY RAND() LIMIT ?',["puzzle",5], function (error, results, fields) {
+        //             if (error) throw error;
+        //             if (results) {
+        //                 for (var i=0;i<results.length;i++) {
+        //                     var choices = results.questionChoice1?[results.questionChoice1,results.questionChoice2,results.questionChoice3,results.questionChoice4]:null;
+        //                     WinDow_lib.Array_shuffle(choices);
+        //
+        //                     var question = new Question({questionID:results.questionID,questionFileName:questionType+'/'+results.questionFilePath,questionAnswer:results.questionAnswer,questionChoices:choices});
+        //                     ListOfQuestions.push(question);
+        //                 }
+        //             } else {
+        //                 console.trace('No question fetched!');
+        //             }
+        //         });
+        //         break;
+        //     case "Map_FindMe":
+        //         con.query('SELECT * FROM question WHERE QuestionType = ? ORDER BY RAND() LIMIT ?',["puzzle",5], function (error, results, fields) {
+        //             if (error) throw error;
+        //             if (results) {
+        //                 for (var i=0;i<results.length;i++) {
+        //                     var choices = results.questionChoice1?[results.questionChoice1,results.questionChoice2,results.questionChoice3,results.questionChoice4]:null;
+        //                     WinDow_lib.Array_shuffle(choices);
+        //
+        //                     var question = new Question({questionID:results.questionID,questionFileName:questionType+'/'+results.questionFilePath,questionAnswer:results.questionAnswer,questionChoices:choices});
+        //                     ListOfQuestions.push(question);
+        //                 }
+        //             } else {
+        //                 console.trace('No question fetched!');
+        //             }
+        //         });
+        //         break;
+        // }
             //****************************************************
             //DEBUG:**********************************************
             //Map_Puzzle
-            // var question1 = new Question({questionID:1,questionFileName:'puzzle/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
-            // var question2 = new Question({questionID:2,questionFileName:'puzzle/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
-            // var question3 = new Question({questionID:3,questionFileName:'puzzle/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
-            // var question4 = new Question({questionID:4,questionFileName:'puzzle/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
-            // var question5 = new Question({questionID:5,questionFileName:'puzzle/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
-            // var question6 = new Question({questionID:6,questionFileName:'puzzle/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
-            // var question7 = new Question({questionID:7,questionFileName:'puzzle/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
-            // var question8 = new Question({questionID:8,questionFileName:'puzzle/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
+            var question1 = new Question({questionID:1,questionFileName:'puzzle/1.png',questionAnswer:'2',questionChoices:[20,10,2,3],questionHint:'Convert all number to 2'});
+            var question2 = new Question({questionID:2,questionFileName:'puzzle/2.png',questionAnswer:'6',questionChoices:[20,10,2,3],questionHint:'Convert all number to 3'});
+            var question3 = new Question({questionID:3,questionFileName:'puzzle/3.png',questionAnswer:'3',questionChoices:[2,3,4,5],questionHint:'Convert 32 and 4 to 2 power of something'});
+            var question4 = new Question({questionID:4,questionFileName:'puzzle/4.png',questionAnswer:'1',questionChoices:[-1,0,4,7],questionHint:'Convert 25 and 125 to 5 power of something'});
+            var question5 = new Question({questionID:5,questionFileName:'puzzle/5.png',questionAnswer:'5',questionChoices:[5,6,7,8],questionHint:'-'});
+            var question6 = new Question({questionID:6,questionFileName:'puzzle/6.png',questionAnswer:'6',questionChoices:[1,4,6,9],questionHint:'-'});
+            var question7 = new Question({questionID:7,questionFileName:'puzzle/7.png',questionAnswer:'7',questionChoices:[10,6,7,3],questionHint:'-'});
+            var question8 = new Question({questionID:8,questionFileName:'puzzle/8.png',questionAnswer:'8',questionChoices:[1,8,3,4],questionHint:'-'});
+            var question9 = new Question({questionID:9,questionFileName:'puzzle/9.png',questionAnswer:'9',questionChoices:[10,9,4,3],questionHint:'-'});
+            var question10 = new Question({questionID:10,questionFileName:'puzzle/10.png',questionAnswer:'10',questionChoices:[10,8,5,6],questionHint:'-'});
+            ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
             //Map_Riddle
             // var question1 = new Question({questionID:1,questionFileName:'riddle/1.png',questionAnswer:'11',questionChoices:['11','21','31','41']});
             // var question2 = new Question({questionID:2,questionFileName:'riddle/2.png',questionAnswer:'22',questionChoices:['12','22','32','42']});
@@ -640,56 +876,56 @@ io.on('connection', function(client) {
             // var question8 = new Question({questionID:8,questionFileName:'ttc_fm/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
             // var question9 = new Question({questionID:9,questionFileName:'ttc_fm/9.png',questionAnswer:'99',questionChoices:[1,2,3,4]});
             // var question10 = new Question({questionID:8,questionFileName:'ttc_fm/10.png',questionAnswer:'00',questionChoices:[1,2,3,4]});
-            switch (room.maps) {
-                case "Map_Puzzle":
-                    var question1 = new Question({questionID:1,questionFileName:'puzzle/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
-                    var question2 = new Question({questionID:2,questionFileName:'puzzle/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
-                    var question3 = new Question({questionID:3,questionFileName:'puzzle/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
-                    var question4 = new Question({questionID:4,questionFileName:'puzzle/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
-                    var question5 = new Question({questionID:5,questionFileName:'puzzle/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
-                    var question6 = new Question({questionID:6,questionFileName:'puzzle/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
-                    var question7 = new Question({questionID:7,questionFileName:'puzzle/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
-                    var question8 = new Question({questionID:8,questionFileName:'puzzle/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
-                    ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
-                    break;
-                case "Map_Riddle":
-                    var question1 = new Question({questionID:1,questionFileName:'riddle/1.png',questionAnswer:'11',questionChoices:['11','21','31','41']});
-                    var question2 = new Question({questionID:2,questionFileName:'riddle/2.png',questionAnswer:'22',questionChoices:['12','22','32','42']});
-                    var question3 = new Question({questionID:3,questionFileName:'riddle/3.png',questionAnswer:'33',questionChoices:['13','23','33','43']});
-                    var question4 = new Question({questionID:4,questionFileName:'riddle/4.png',questionAnswer:'44',questionChoices:['14','24','34','44']});
-                    var question5 = new Question({questionID:5,questionFileName:'riddle/5.png',questionAnswer:'55',questionChoices:['15','25','35','55']});
-                    var question6 = new Question({questionID:6,questionFileName:'riddle/6.png',questionAnswer:'66',questionChoices:['16','26','66','46']});
-                    var question7 = new Question({questionID:7,questionFileName:'riddle/7.png',questionAnswer:'77',questionChoices:['77','27','37','47']});
-                    var question8 = new Question({questionID:8,questionFileName:'riddle/8.png',questionAnswer:'88',questionChoices:['18','88','38','48']});
-                    ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
-                    break;
-                case "Map_TicTacToe":
-                    var question1 = new Question({questionID:1,questionFileName:'ttc_fm/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
-                    var question2 = new Question({questionID:2,questionFileName:'ttc_fm/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
-                    var question3 = new Question({questionID:3,questionFileName:'ttc_fm/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
-                    var question4 = new Question({questionID:4,questionFileName:'ttc_fm/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
-                    var question5 = new Question({questionID:5,questionFileName:'ttc_fm/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
-                    var question6 = new Question({questionID:6,questionFileName:'ttc_fm/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
-                    var question7 = new Question({questionID:7,questionFileName:'ttc_fm/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
-                    var question8 = new Question({questionID:8,questionFileName:'ttc_fm/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
-                    var question9 = new Question({questionID:9,questionFileName:'ttc_fm/9.png',questionAnswer:'99',questionChoices:[1,2,3,4]});
-                    var question10 = new Question({questionID:8,questionFileName:'ttc_fm/10.png',questionAnswer:'00',questionChoices:[1,2,3,4]});
-                    ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
-                    break;
-                case "Map_FindMe":
-                    var question1 = new Question({questionID:1,questionFileName:'ttc_fm/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
-                    var question2 = new Question({questionID:2,questionFileName:'ttc_fm/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
-                    var question3 = new Question({questionID:3,questionFileName:'ttc_fm/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
-                    var question4 = new Question({questionID:4,questionFileName:'ttc_fm/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
-                    var question5 = new Question({questionID:5,questionFileName:'ttc_fm/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
-                    var question6 = new Question({questionID:6,questionFileName:'ttc_fm/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
-                    var question7 = new Question({questionID:7,questionFileName:'ttc_fm/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
-                    var question8 = new Question({questionID:8,questionFileName:'ttc_fm/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
-                    var question9 = new Question({questionID:9,questionFileName:'ttc_fm/9.png',questionAnswer:'99',questionChoices:[1,2,3,4]});
-                    var question10 = new Question({questionID:8,questionFileName:'ttc_fm/10.png',questionAnswer:'00',questionChoices:[1,2,3,4]});
-                    ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
-                    break;
-            }
+            // switch (room.maps) {
+            //     case "Map_Puzzle":
+            //         var question1 = new Question({questionID:1,questionFileName:'puzzle/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
+            //         var question2 = new Question({questionID:2,questionFileName:'puzzle/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
+            //         var question3 = new Question({questionID:3,questionFileName:'puzzle/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
+            //         var question4 = new Question({questionID:4,questionFileName:'puzzle/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
+            //         var question5 = new Question({questionID:5,questionFileName:'puzzle/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
+            //         var question6 = new Question({questionID:6,questionFileName:'puzzle/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
+            //         var question7 = new Question({questionID:7,questionFileName:'puzzle/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
+            //         var question8 = new Question({questionID:8,questionFileName:'puzzle/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
+            //         ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
+            //         break;
+            //     case "Map_Riddle":
+            //         var question1 = new Question({questionID:1,questionFileName:'riddle/1.png',questionAnswer:'11',questionChoices:['11','21','31','41']});
+            //         var question2 = new Question({questionID:2,questionFileName:'riddle/2.png',questionAnswer:'22',questionChoices:['12','22','32','42']});
+            //         var question3 = new Question({questionID:3,questionFileName:'riddle/3.png',questionAnswer:'33',questionChoices:['13','23','33','43']});
+            //         var question4 = new Question({questionID:4,questionFileName:'riddle/4.png',questionAnswer:'44',questionChoices:['14','24','34','44']});
+            //         var question5 = new Question({questionID:5,questionFileName:'riddle/5.png',questionAnswer:'55',questionChoices:['15','25','35','55']});
+            //         var question6 = new Question({questionID:6,questionFileName:'riddle/6.png',questionAnswer:'66',questionChoices:['16','26','66','46']});
+            //         var question7 = new Question({questionID:7,questionFileName:'riddle/7.png',questionAnswer:'77',questionChoices:['77','27','37','47']});
+            //         var question8 = new Question({questionID:8,questionFileName:'riddle/8.png',questionAnswer:'88',questionChoices:['18','88','38','48']});
+            //         ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
+            //         break;
+            //     case "Map_TicTacToe":
+            //         var question1 = new Question({questionID:1,questionFileName:'ttc_fm/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
+            //         var question2 = new Question({questionID:2,questionFileName:'ttc_fm/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
+            //         var question3 = new Question({questionID:3,questionFileName:'ttc_fm/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
+            //         var question4 = new Question({questionID:4,questionFileName:'ttc_fm/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
+            //         var question5 = new Question({questionID:5,questionFileName:'ttc_fm/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
+            //         var question6 = new Question({questionID:6,questionFileName:'ttc_fm/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
+            //         var question7 = new Question({questionID:7,questionFileName:'ttc_fm/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
+            //         var question8 = new Question({questionID:8,questionFileName:'ttc_fm/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
+            //         var question9 = new Question({questionID:9,questionFileName:'ttc_fm/9.png',questionAnswer:'99',questionChoices:[1,2,3,4]});
+            //         var question10 = new Question({questionID:8,questionFileName:'ttc_fm/10.png',questionAnswer:'00',questionChoices:[1,2,3,4]});
+            //         ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
+            //         break;
+            //     case "Map_FindMe":
+            //         var question1 = new Question({questionID:1,questionFileName:'ttc_fm/1.png',questionAnswer:'11',questionChoices:[1,2,3,4]});
+            //         var question2 = new Question({questionID:2,questionFileName:'ttc_fm/2.png',questionAnswer:'22',questionChoices:[1,2,3,4]});
+            //         var question3 = new Question({questionID:3,questionFileName:'ttc_fm/3.png',questionAnswer:'33',questionChoices:[1,2,3,4]});
+            //         var question4 = new Question({questionID:4,questionFileName:'ttc_fm/4.png',questionAnswer:'44',questionChoices:[1,2,3,4]});
+            //         var question5 = new Question({questionID:5,questionFileName:'ttc_fm/5.png',questionAnswer:'55',questionChoices:[1,2,3,4]});
+            //         var question6 = new Question({questionID:6,questionFileName:'ttc_fm/6.png',questionAnswer:'66',questionChoices:[1,2,3,4]});
+            //         var question7 = new Question({questionID:7,questionFileName:'ttc_fm/7.png',questionAnswer:'77',questionChoices:[1,2,3,4]});
+            //         var question8 = new Question({questionID:8,questionFileName:'ttc_fm/8.png',questionAnswer:'88',questionChoices:[1,2,3,4]});
+            //         var question9 = new Question({questionID:9,questionFileName:'ttc_fm/9.png',questionAnswer:'99',questionChoices:[1,2,3,4]});
+            //         var question10 = new Question({questionID:8,questionFileName:'ttc_fm/10.png',questionAnswer:'00',questionChoices:[1,2,3,4]});
+            //         ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
+            //         break;
+            // }
             //ListOfQuestions.push(question1,question2,question3,question4,question5,question6,question7,question8,question9,question10);
             //****************************************************
             room.questions = ListOfQuestions;
@@ -698,12 +934,17 @@ io.on('connection', function(client) {
 
 	/*DEBUG:PLEASE REMOVE IT FOR PRODUCTION*/
 	function loadPlayerData(data) {
+	    console.log(data);
         if (data.id == "1") {
-            var playerData = new Player({ID: 1, name: "tim", rank: 1201, coin: 1001, socketID: data.socketID});
+            var playerData = new Player({socketID: data.socketID, ID: 1, name: "tim", rank: 1201, coin: 1001});
         } else if (data.id == "2") {
-            var playerData = new Player({ID: 2, name: "john", rank: 1202, coin: 1002, socketID: data.socketID});
+            var playerData = new Player({socketID: data.socketID, ID: 2, name: "john", rank: 1202, coin: 1002});
+        } else if (data.id == "0") {
+            var playerData = new Player({socketID: "AA", ID: 0, name: "", rank: 0, coin: 0});
+        } else if (data.id == "3") {
+            var playerData = new Player({socketID: data.socketID, ID: 3, name: "tim", rank: 1201, coin: 1001});
         } else {
-            var playerData = new Player({ID: 3, name: "Welcc", rank: 1203, coin: 1003, socketID: data.socketID});
+            var playerData = new Player({socketID: data.socketID, ID: 3, name: "UNKNOWN", rank: 1203, coin: 1003});
         }
         //TODO: Fetch player database
         return playerData;
@@ -717,7 +958,6 @@ io.on('connection', function(client) {
 });
 //To Do List
 //Game.........
-//Update pattern on client side
 //Block client input on client side
 //Dereference room object
 //
@@ -737,25 +977,25 @@ io.on('connection', function(client) {
 //8.Game ready (Means game done load)   ✓   ✓
 //9.Game start                          ✓   ✓
 //10.Game timer ticks                   ✓   ✓
-//11.Game player1 move                  ✓   OTW (Map_Puzzle ✓)
-//12.Game player2 move                  ✓   OTW (Map_Puzzle ✓)
+//11.Game player1 move                  ✓   ✓
+//12.Game player2 move                  ✓   ✓
 //13.Game player3 move                  -   -
 //14.Game player4 move                  -   -
 //15.Game points recording              ✓   ✓
 //16.Game fetch question                ✓   UI
 //17.Game fetch hints                   -   -
-//18.Game check answer                  ✓   OTW (Map_Puzzle ✓)
-//18.Game answer correct                ✓   OTW (Map_Puzzle ✓)
-//18.Game answer wrong                  ✓   OTW (Map_Puzzle ✓)
+//18.Game check answer                  ✓   ✓
+//18.Game answer correct                ✓   ✓
+//18.Game answer wrong                  ✓   ✓
 //19.Game check wins                    ✓   ✓
-//20.Game stop                          Fix   ✓
+//20.Game stop                          ✓   ✓
 //21.Stat add ranking
 //22.Stat reduce ranking
 //23.Stat add coin
 //24.Stat reduce coin
 //25.Player request leader board
-//26.Player register                    ✓
-//27.Player login                       ✓
+//26.Player register                    ✓   ✓
+//27.Player login                       ✓   ✓
 
 
 //************UI DESIGN*************//

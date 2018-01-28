@@ -124,11 +124,19 @@ Register.prototype = {
         this.logo.scale.setTo(0.7);
 
         this.register_btn  = this.createButton(230,400,"Register",function() {
-            //TODO:Insert database
-            game.state.start("Login");
+            socket.emit('PLAYER.register',{username:this.username_text.value,password:this.password_text.value});
         });
         this.back_btn  = this.createButton(60,400,"Back",function() {
             game.state.start("Login");
+        });
+
+
+        socket.on('PLAYER.registerSuccess',function() {
+            game.state.start("Login");
+        });
+
+        socket.on('PLAYER.registerFailed',function() {
+            alert('Failed to register');
         });
     },
 

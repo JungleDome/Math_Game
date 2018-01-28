@@ -11,7 +11,7 @@ IndividualMatch.prototype = {
     },
 
 	createTextRectangle: function (x,y,w,h,text) {
-        var fontStyle={font:'26pt opensans',align:'center',fill:'#FFFFFF'};
+        var fontStyle={font:'26pt opensans',boundsAlignH:'center',boundsAlignV:'middle',fill:'#FFFFFF'};
 
         var group = game.add.group();
         var sprite = game.add.graphics(x, y);
@@ -21,7 +21,7 @@ IndividualMatch.prototype = {
 
 
         var genText=game.add.text(0,0,text,fontStyle);
-        genText.setTextBounds(x+w/3,y+h/4,w,h);
+        genText.setTextBounds(x,y,w,h);
 
         group.addMultiple([sprite,genText]);
         return group;
@@ -29,6 +29,7 @@ IndividualMatch.prototype = {
 
 	createMatchSlot: function(matchNumber,map,player1,player2,moneyEarned,rankEarned,matchResult) {
 		//Defining all variable
+        console.log(map);
         var sequenceTextStyle = { font: '18pt opensans', fill: 'black', align: 'left', stroke: 'rgba(25,25,25,0.3)', strokeThickness: 2};
         var textStyle = {font: '14pt opensans', align: 'left', weight: 'bold'};
 		var width = game.world.width*0.8;
@@ -62,8 +63,24 @@ IndividualMatch.prototype = {
         var matchResultText	 = game.make.text(width*0.3,15,matchResult,textStyle);
         // var player1Text  	 = game.make.text(width*0.6,3,player1,textStyle);
         // var player2Text      = game.make.text(width*0.6,23,player2,textStyle);
-        var moneyEarnedText  = game.make.text(width*0.5,5,"Money Earned:"+moneyEarned,textStyle);
-        var rankEarnedText   = game.make.text(width*0.5,25,"Rating Earned :"+rankEarned,textStyle);
+        var texta = "";
+        var textb = "";
+        switch (matchResult) {
+            case "Win":
+                texta = "Money Earned:";
+                textb = "Rating Earned:";
+                break;
+            case "Lose":
+                color = 0xFF3232;
+                texta = "Money Earned:";
+                textb = "Rating Reduced:";
+                break;
+            default:
+                color = 0xE5FFE5;
+                break;
+        }
+        var moneyEarnedText  = game.make.text(width*0.5,5,texta+moneyEarned,textStyle);
+        var rankEarnedText   = game.make.text(width*0.5,25,textb+rankEarned,textStyle);
 
         matchSlotContainer.addMultiple([background,sequenceText,mapText,matchResultText/*,player1Text,player2Text*/,moneyEarnedText,rankEarnedText]);
         matchSlotContainer.x = 0;
@@ -223,10 +240,10 @@ IndividualMatch.prototype = {
 		 * DEBUG *
 		 *********/
 		// setTimeout(function() {
-		// 	game.state.start("Map_FindMe");
+		// 	game.state.start("Map_TicTacToe");
 		// },10);
 
-		//TODO:get database
+
         socket.emit('PLAYER.getMatchHistory',{id:getCookie("id"),socketID:getCookie("socketID")});
 
         socket.on('PLAYER.matchHistory',function(data) {

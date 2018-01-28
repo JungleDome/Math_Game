@@ -6,8 +6,38 @@ Map_TicTacToe.lastQuestionNumber = 0;
 Map_TicTacToe.backgroundColor = '#788DA7';
 Map_TicTacToe.gameStarted = false;
 Map_TicTacToe.isQuestionAnswered = true;
+Map_TicTacToe.isSinglePlayer = false;
+Map_TicTacToe.questionArray = [];
 
 Map_TicTacToe.prototype = {
+    wrongMessageBox: function() {
+        color = color || 0x826CFF;
+        border = border || 0x3751E5;
+        var h = 50;
+        var w = game.world.width*0.7;
+        var x = 0;
+        var y = 0;
+        var gameCenterY = game.world.centerY;
+
+        this.popup = game.add.group();
+        this.sprite = game.add.graphics(x, y);
+        this.sprite.name = "sprite";
+        this.captionText = game.add.text(x,y,"Please try again later",Map_Riddle.captionFontStyle);
+        this.captionText.name = "captionText";
+        this.captionText.setTextBounds(0,0,w,h);
+        this.captionText.setShadow(3, 3, 'rgba(0,0,0,0.5)', 10);
+
+        this.sprite.beginFill(border, 1);
+        this.sprite.drawRoundedRect(0,1,w+3,h+2,3);
+        this.sprite.beginFill(color, 1);
+        this.sprite.drawRoundedRect(0, 0, w, h, 4);
+
+        this.popup.addMultiple([this.sprite,this.captionText]);
+        this.popup.y = game.world.centerY;
+        this.popup.x = 60;
+
+        return this.popup;
+    },
     createCenterNotification: function(text,color,border) {
         color = color || 0x526CFF;
         border = border || 0x3751E5;
@@ -52,8 +82,8 @@ Map_TicTacToe.prototype = {
             border = border?border:0x526C8E;
 
             var buttonGroup = game.add.group();
-            var buttonText = game.add.text(x,y,text,Map_TicTacToe.buttonFontStyle);
-            buttonText.setTextBounds(0,0,0,0);
+            var buttonText = game.add.text(0,0,text,Map_TicTacToe.buttonFontStyle);
+            buttonText.setTextBounds(x-d/2,y-d/2,d,d*1.15);
             var sprite = game.add.graphics(x, y);
             sprite.beginFill(border, 1);
             sprite.drawCircle(0,0,d+5);
@@ -88,7 +118,7 @@ Map_TicTacToe.prototype = {
         sprite.drawRoundedRect(0, 0, w, h, 4);
 
         //Create button
-        var exitButton = createCircleButton(x+(w*0.9),y,30,color,border,"X",function() {
+        var exitButton = createCircleButton(x+(w*0.9),y,30,color,border,"✖",function() {
             popup.destroy();
         });
 
@@ -112,6 +142,54 @@ Map_TicTacToe.prototype = {
         return sprite;
         //BLOCKED:3099761
         //ACTIVATE:5401742
+    },
+    showHintMessageBox: function(text) {
+        function createCircleButton(x,y,d,color,border,text,callback) {
+            color = color?color:0xD8DFE8;
+            border = border?border:0x526C8E;
+
+            var buttonGroup = game.add.group();
+            var buttonText = game.add.text(0,0,text,Map_Riddle.buttonFontStyle);
+            buttonText.setTextBounds(x-d/2,y-d/2,d,d*1.15);
+            var sprite = game.add.graphics(x, y);
+            sprite.beginFill(border, 1);
+            sprite.drawCircle(0,0,d+5);
+            sprite.bounds = new PIXI.Circle(0,0,d+2);
+            sprite.beginFill(color, 1);
+            sprite.drawCircle(0,0,d);
+
+
+            buttonGroup.addMultiple([sprite,buttonText]);
+            sprite.inputEnabled = true;
+            sprite.events.onInputUp.add(callback,this);
+
+            return buttonGroup
+        }
+        var messageFontStyle = {font: '17pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        var fillColor = 0x38D828;
+        var borderColor = 0x526C8E;
+        var width  = 340;
+        var height = 150;
+        var margin = 20;
+        var x = 40;
+
+        var messageGroup = game.add.group();
+        var bgContainer = game.add.graphics(0, 0);
+        bgContainer.beginFill(fillColor, 1);
+        bgContainer.bounds = new PIXI.Rectangle(0, 0, width+2, height+2);
+        bgContainer.drawRoundedRect(2, 2, width-4, height-4, 4);
+        bgContainer.beginFill(borderColor, 1);
+        bgContainer.drawRoundedRect(0,0,width,height,4);
+        var messageText = game.make.text(margin,30,text,messageFontStyle);
+        messageText.setTextBounds(120,30,50,50);
+        var exitButton = createCircleButton(width-20,20,30,fillColor,borderColor,"✖",function() {
+            messageGroup.destroy();
+        });
+
+        messageGroup.addMultiple([bgContainer,messageText,exitButton]);
+        messageGroup.name = "hint_box";
+        messageGroup.x = 35;
+        messageGroup.y = game.world.height-height-40;
     },
 
     createTickableBox: function(x, y, w, h, player, xyLocation) {
@@ -249,7 +327,7 @@ Map_TicTacToe.prototype = {
 
         var question = game.make.sprite(0,0, "question-".concat(String(parseInt(questionNumber+1))));
         var answerField = game.make.text(margin,height-60,"",Map_TicTacToe.defaultFontStyle);
-        var answerUnderline = game.make.text(margin,answerField.y+5,"__________",Map_TicTacToe.defaultFontStyle);
+        var answerUnderline = game.make.text(margin,answerField.y+5,"______________",Map_TicTacToe.defaultFontStyle);
         var questionSubmit = Map_TicTacToe.prototype.createRectangle(width - margin - 100,answerUnderline.y-20,100,50,0xFFFFFF,0x000000);
         var submitText      = game.add.text(width - margin - 100,answerUnderline.y-20,"Submit",buttonFontStyle);
         submitText.setTextBounds(0,0,100,50);
@@ -271,8 +349,8 @@ Map_TicTacToe.prototype = {
             return answerField.answer;
         };
         answerField.appendAnswer = function(text) {
-            //Not longer than 2 character
-            if ((answerField.answer==="")||(parseInt(answerField.answer)<=99)) {
+            //Not longer than 4 character
+            if ((answerField.answer==="")||(parseInt(answerField.answer)<=9999)) {
                 answerField.answer += text;
                 answerField.setText(answerField.answer);
             }
@@ -286,6 +364,17 @@ Map_TicTacToe.prototype = {
         questionGroup.name = "question_group";
         questionGroup.x = game.world.width*0.1;
         questionGroup.y = game.world.height*0.25;
+
+        if (Map_TicTacToe.isSinglePlayer) {
+            var showHintBtn = game.add.sprite(width/2 - 50, answerUnderline.y-15, 'hint-ico');
+            showHintBtn.scale.setTo(0.13);
+            showHintBtn.inputEnabled = true;
+            showHintBtn.events.onInputUp.add(function () {
+                Map_TicTacToe.prototype.showHintMessageBox(Map_TicTacToe.questionArray[questionNumber].questionHint);
+            });
+            questionGroup.add(showHintBtn);
+        }
+
         return questionGroup;
     },
     hidePopupQuestion: function() {
@@ -323,15 +412,19 @@ Map_TicTacToe.prototype = {
             this.createPopUp(this.game.width*0.05,this.game.height*0.5-100,this.game.width*0.9,200,0xD8DFE8,0xA9B8CB,"How to play!","1.Fill up all the boxes.\n2.The highest score will win the game.");
         }, this);
 
-        this.player1Name = game.make.text(0,35,"Player1",game.global.fontStyle);
+        this.player1Name = game.make.text(0,0,"Player1",game.global.fontStyle);
         this.player1Name.name = "Player1Name";
-        this.player1Name.setStyle({fontSize:9, align: 'right', boundsAlignH: 'right',boundsAlignV:'middle'});
-        this.player1Name.setTextBounds(0,0,game.world.width*0.46,this.player1Name.height);
+        this.player1Name.setStyle({fontSize:11, align: 'left', boundsAlignH: 'left',boundsAlignV:'middle'});
+        this.player1Name.setTextBounds(95,45,60,this.player1Name.height);
 
-        this.player2Name = game.make.text(0,35,"Player2",game.global.fontStyle);
+        this.playerSeperator = game.make.text(0,0,":",game.global.fontStyle);
+        this.playerSeperator.setStyle({fontSize:13, align: 'left', boundsAlignH: 'left',boundsAlignV:'middle'});
+        this.playerSeperator.setTextBounds(137,45,60,this.playerSeperator.height);
+
+        this.player2Name = game.make.text(0,0,"Player2",game.global.fontStyle);
         this.player2Name.name = "Player2Name";
-        this.player2Name.setStyle({fontSize:9, align: 'left', boundsAlignH: 'left',boundsAlignV:'middle'});
-        this.player2Name.setTextBounds(game.world.width*0.54,0,game.world.width*0.46,this.player2Name.height);
+        this.player2Name.setStyle({fontSize:11, align: 'left', boundsAlignH: 'left',boundsAlignV:'middle'});
+        this.player2Name.setTextBounds(145,45,60,this.player2Name.height);
 
         utils.centerGameObjects([this.menu,this.timer,this.help]);
     },
@@ -343,6 +436,7 @@ Map_TicTacToe.prototype = {
         game.add.existing(this.help);
         game.add.existing(this.player1Name);
         game.add.existing(this.player2Name);
+        game.add.existing(this.playerSeperator);
 
         // //Demo
         // this.tictactoePattern = [[0,"F",0,"F",0],["S",0,"S",0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]];
@@ -378,6 +472,8 @@ Map_TicTacToe.prototype = {
                 //Load Question
                 var loader = new Phaser.Loader(game);
                 for (var i=0;i<Object.keys(data.questions).length;i++) {
+                    Map_TicTacToe.questionArray[i] = data.questions[i];
+
                     loader.image('question-'.concat(data.questions[i].questionID),data.questions[i].questionFileName);
                     //(Question) {questionID,questionFileName,questionAnswer,questionChoices}
                 }
@@ -385,6 +481,9 @@ Map_TicTacToe.prototype = {
                     console.log('(Done)Loading Questions');
                 });
                 loader.start();
+
+
+                Map_TicTacToe.isSinglePlayer = data.room.isSinglePlayer;
                 socket.emit('GAME.ready',{id:game.global.id,socketID:game.global.socketID});
             } else {
                 console.log('(ERROR)No room details returned from server.');
@@ -445,6 +544,10 @@ Map_TicTacToe.prototype = {
                     children.forEach(function(children2) {
                         if (children2.name===data.choice) {
                             children2.toggleWrong();
+                            var a = Map_TicTacToe.prototype.wrongMessageBox();
+                            setTimeout(function(a) {
+                                a.destroy();
+                            },2000,a);
                         }
                     });
                 }
@@ -452,7 +555,7 @@ Map_TicTacToe.prototype = {
         });
 
         socket.on('GAME.win',function() {
-            this.gameResult = Map_TicTacToe.prototype.createCenterNotification("Game Ends!");
+            this.gameResult = Map_TicTacToe.prototype.createCenterNotification("Victory! :)");
             game.add.existing(this.gameResult);
             this.gameResult.showScreen(this.gameResult,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -466,7 +569,7 @@ Map_TicTacToe.prototype = {
         });
 
         socket.on('GAME.lose',function() {
-            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Game Ends!");
+            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Defeated :(");
             game.add.existing(this.gameStop);
             this.gameStop.showScreen(this.gameStop,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -480,7 +583,7 @@ Map_TicTacToe.prototype = {
         });
 
         socket.on('GAME.draw',function() {
-            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Game Ends!");
+            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Draw :|");
             game.add.existing(this.gameStop);
             this.gameStop.showScreen(this.gameStop,function(parent) {
                 this.list = parent.filter(function(child) {

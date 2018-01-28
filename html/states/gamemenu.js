@@ -10,7 +10,7 @@ GameMenu.prototype = {
   
   addMenuOption: function(text, callback) {
     var optionStyle = { font: '30pt opensans', fill: 'white', align: 'left', stroke: 'rgba(0,0,0,0)', srokeThickness: 4};
-    var txt = game.make.text(game.world.centerX, (this.optionCount * 60) + 200, text, optionStyle);
+    var txt = game.make.text(game.world.centerX, (this.optionCount * 60) + 100, text, optionStyle);
     txt.anchor.setTo(0.5);
     txt.stroke = "rgba(0,0,0,0";
     txt.strokeThickness = 4;
@@ -75,9 +75,9 @@ GameMenu.prototype = {
 	
 	//this.game.ListView.start();
 	var fontStyle = {
-	font: '13pt opensans',
-    align: 'center'
-	}
+	    font: '13pt opensans',
+        align: 'center'
+	};
     this.optionCount = 1;
 	//Elements for main menu container//
     this.logo        = game.make.sprite(game.world.centerX, 200, 'brand');
@@ -88,7 +88,8 @@ GameMenu.prototype = {
 	this.coin_text.name = "coin";
 	this.trophy_ico    = game.make.sprite(game.world.width*0.6, 50, 'trophy-ico');
 	this.trophy_text   = game.make.text(game.world.width*0.6+50,55, "0000",fontStyle);
-      this.trophy_text.name = "trophy";
+    this.trophy_text.name = "trophy";
+    this.option_ico    = game.make.sprite(game.world.width*0.8, game.world.height*0.9, 'option-ico');
 	this.copyrightText = game.make.text(game.world.centerX, game.world.height-10, "2017 Copyright Reserved @ The Cake Team", {
       font: '11pt opensans',
       fill: '#ABCDEF',
@@ -96,11 +97,24 @@ GameMenu.prototype = {
     });
     this.copyrightText.setShadow(3, 3, 'rgba(0,0,0,0.5)', 5);
     this.rank_ico      = game.make.sprite(game.world.width*0.9, 50, 'ranking-ico');
-	
-	//Elements for global ranking container//
+
+    //Elements for option menu container
+    this.optionText = game.make.text(game.world.centerX, 100, "Option Menu",{font: '17pt opensans', boundsAlignH:'center',boundsAlignV:'middle'});
+	this.soundOption = game.make.text(100, 200, "Game Sound",{font: '13pt opensans',fontWeight:"bold", boundsAlignH:'center',boundsAlignV:'middle'});
+    var soundToggleText = game.global.playMusic?"On":"Off";
+	this.soundOptionToggle = game.make.text(300, 200, soundToggleText,{font: '12pt opensans', boundsAlignH:'center',boundsAlignV:'middle'});
+	this.soundOptionToggle.inputEnabled = true;
+	this.soundOptionToggle.events.onInputUp.add(function(e) {
+	    console.log(game.global.playMusic);
+	    game.global.playMusic = !game.global.playMusic;
+        var soundToggleText = game.global.playMusic?"On":"Off";
+        e.text = soundToggleText;
+    });
+
+    //Elements for global ranking container//
 	this.rankTitle      = game.make.text(game.world.centerX, 60, "GLOBAL RANKING",fontStyle);
 	
-	utils.centerGameObjects([this.logo,this.username,this.coin_ico,this.coin_text,this.trophy_ico,this.trophy_text,this.rank_ico,this.copyrightText,this.rankTitle]);
+	utils.centerGameObjects([this.logo,this.username,this.coin_ico,this.coin_text,this.trophy_ico,this.trophy_text,this.rank_ico,this.option_ico,this.copyrightText,this.rankTitle,this.optionText,this.soundOptionToggle,this.soundOption]);
   },
 
   create: function () {
@@ -120,11 +134,18 @@ GameMenu.prototype = {
           return "";
       }
 	//Handling background music
-    if (music.name !== "MainMenu-1" ) {
+    if (game.global.playMusic) {
       music.stop();
       music = game.add.audio('MainMenu-1');
       music.loop = true;
       music.play();
+      setInterval(function () {
+          if (!game.global.playMusic) {
+              music.stop();
+          } else {
+              music.play();
+          }
+      },300,music);
     }
 	
 	//Prevent the game to be stopped when browser is unfocused//
@@ -142,15 +163,35 @@ GameMenu.prototype = {
 	//Create  multiple container to contains element//
 	this.menuContainer = game.add.group();
 	this.rankingContainer = game.add.group();
+    this.optionContainer = game.add.group();
 	this.menuContainer.name = "Menu_Container";
     this.rankingContainer.name = "Rank_Container";
-	//Adding evey element into the stage//
-	this.menuContainer.addMultiple([this.copyrightText,this.username,this.coin_text,this.trophy_text,this.logo,this.coin_ico,this.trophy_ico,this.rank_ico]);
+    //Adding evey element into the stage//
+	this.menuContainer.addMultiple([this.copyrightText,this.username,this.coin_text,this.trophy_text,this.logo,this.coin_ico,this.trophy_ico,this.rank_ico,this.option_ico]);
 	this.logo.scale.setTo(0.5);
 	this.coin_ico.scale.setTo(0.1);
 	this.trophy_ico.scale.setTo(0.1);
 	this.rank_ico.scale.setTo(0.2);
+    this.option_ico.scale.setTo(0.1);
 
+
+    //Handling option icon in menu
+    this.option_ico.inputEnabled = true;
+    this.option_ico.events.onInputUp.add(function() {
+        this.menuContainer.visible = false;
+        this.rankingContainer.visible = false;
+        this.optionContainer.visible = true;
+    },this);
+    //Handling option menu
+    this.optionContainer.name = "Option_Container";
+    this.option_backBtn = this.addMenuOption('Back',function() {
+        this.menuContainer.visible = true;
+        this.rankingContainer.visible = false;
+        this.optionContainer.visible = false;
+    });
+    this.option_backBtn.y = 500;
+    this.optionContainer.addMultiple([this.option_backBtn,this.optionText,this.soundOption,this.soundOptionToggle]);
+    this.optionContainer.visible = false;
 
 
 	this.rankingContainer.addMultiple([this.rankTitle]);
@@ -183,7 +224,7 @@ GameMenu.prototype = {
       game.global.id = getCookie("id");
       game.global.socketID = getCookie("socketID");
 
-	  socket.emit('MENU.Handshake',{id:game.global.id,socketID:game.global.socketID},function () {
+	  socket.emit('MENU.Handshake',{id:getCookie("id"),socketID:getCookie("socketID")},function () {
           console.log("(✓) Connected to server");
       });
 
@@ -204,10 +245,9 @@ GameMenu.prototype = {
 						}
                     });
 				} else if (children.name === "Rank_Container") {
-                    this.top1 = GameMenu.prototype.createMatchSlot(1,data.name);
-                    this.top2 = GameMenu.prototype.createMatchSlot(2,"Micheal");
-                    this.top3 = GameMenu.prototype.createMatchSlot(3,"WWWWWWW");
-            	    children.addMultiple([this.top1,this.top2,this.top3]);
+                    this.top1 = GameMenu.prototype.createMatchSlot(1,"abc");
+                    this.top2 = GameMenu.prototype.createMatchSlot(2,"hello");
+            	    children.addMultiple([this.top1,this.top2]);
             	    children.update();
                 }
 

@@ -35,8 +35,10 @@ Splash.prototype = {
 	game.load.image('coin-ico', 'assets/images/coin.png');
 	game.load.image('trophy-ico', 'assets/images/trophy.png');
     game.load.image('ranking-ico', 'assets/images/ranking.png');
+    game.load.image('option-ico', 'assets/images/option.png');
 	game.load.image('ttc_circle','assets/images/circle.png');
 	game.load.image('ttc_cross','assets/images/cross.png');
+    game.load.image('hint-ico', 'assets/images/hint.png');
   },
 
   loadFonts: function () {

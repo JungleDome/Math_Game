@@ -11,11 +11,15 @@ module.exports = function(args) {
     if (args.questionChoices) {var questionChoices = args.questionChoices;}
     else {var questionChoices = null;}
 
+    if (args.questionHint) {var questionHint = args.questionHint;}
+    else {var questionHint = null;}
+
     return {
         questionID:questionID,
         questionFileName:questionFileName,
         questionAnswer:questionAnswer,
         questionChoices:questionChoices,
+        questionHint:questionHint,
 
         checkAnswer: function(userAnswer) {
             if (this.questionAnswer==userAnswer) {

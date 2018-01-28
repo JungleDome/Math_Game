@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="mysql://ba9a193d278c1f:1b3073b4@us-cdbr-iron-east-05.cleardb.net/heroku_89ff13c40e1cc69?reconnect=true" uuid="dcdec921-f311-474f-a411-2951fb7077ae">
+    <data-source source="LOCAL" name="mathgame1@localhost" uuid="27dce0fc-bbae-49c0-8075-3405085c7122">
       <driver-ref>mysql</driver-ref>
       <synchronize>true</synchronize>
-      <configured-by-url>true</configured-by-url>
       <jdbc-driver>com.mysql.jdbc.Driver</jdbc-driver>
-      <jdbc-url>mysql://ba9a193d278c1f:1b3073b4@us-cdbr-iron-east-05.cleardb.net/heroku_89ff13c40e1cc69?reconnect=true</jdbc-url>
+      <jdbc-url>jdbc:mysql://localhost:3306/mathgame1</jdbc-url>
       <driver-properties>
         <property name="autoReconnect" value="true" />
         <property name="zeroDateTimeBehavior" value="convertToNull" />

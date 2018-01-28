@@ -21,6 +21,7 @@ function Room(args) {
     this.puzzlePattern    = null;
     this.player1False     = false;
     this.player2False     = false;
+    this.isSinglePlayer   = false;
     this.self_timer       = args.self_timer;
 }
 
@@ -40,22 +41,22 @@ Room.prototype.initRoom = function() {
             //   [0,0,0,0,0]   \\
             //*****************//
             this.tictactoePattern = [["B","B","B","B","B"],["B","B","B","B","B"],["B","B","B","B","B"],["B","B","B","B","B"],["B","B","B","B","B"]];
-            this.timeLimit = 30000;
+            this.timeLimit = 600000;//10min
             break;
         case "Map_Puzzle":
             //****7x7 Puzzle*****// B = NONE, S = SystemDefined, N = EmptyValue, C = CorrectAnswer, W = WrongAnswer
             //Custom format (state_value_number) (ex:S_6_1,C_14_1,W_9_1)
-            //  [B,N,B,N,B,B,B]  \\
-            //  [N,S,S,S,N,S,N]  //
-            //  [B,N,B,N,B,B,B]  \\
-            //  [B,S,B,S,B,B,B]  //
-            //  [B,N,B,N,B,B,B]  \\
-            //  [B,S,B,S,B,B,B]  //
+            //  [B,N1,B,N2,B,B,B]  \\
+            //  [N3,S+,S14,S+,N4,S=,N]  //
+            //  [B,N5,B,N6,B,B,B]  \\
+            //  [B,S-,B,S-,B,B,B]  //
+            //  [B,S10,B,S10,B,B,B]  \\
+            //  [B,S=,B,S=,B,B,B]  //
             //  [B,N,B,N,B,B,B]  \\
             //*******************//
-            this.puzzlePattern = [["B","N__1","B","N__2","B","B","B"],["N__3","S_*_","S_14_","S_-_","N__4","S_=_","N__"],["B","N__5","B","N__6","B","B","B"],
-                ["B","S_*_","B","S_*_","B","B","B"],["B","S_*_","B","S_2_","B","B","B"],["B","S_=_","B","S_=_","B","B","B"],["B","N__","B","N__","B","B","B"]];
-            this.timeLimit = 30000;
+            this.puzzlePattern = [["B","N__1","B","N__2","B","B","B"],["N__3","S_+_","S_14_","S_+_","N__4","S_=_","N__"],["B","N__5","B","N__6","B","B","B"],
+                ["B","S_-_","B","S_-_","B","B","B"],["B","S_10_","B","S_10_","B","B","B"],["B","S_=_","B","S_=_","B","B","B"],["B","N__","B","N__","B","B","B"]];
+            this.timeLimit = 1800000;//60min
             break;
         case "Map_FindMe":
             //**5x6 FindMe**// C = Closed(Default), O = Opened, T = True, F = False
@@ -68,10 +69,10 @@ Room.prototype.initRoom = function() {
             //   [C,C,C,C,C]   //
             //*****************\\
             this.findmePattern = [["C_F","C_T","C_F"],["C_F","C_F","C_F"],["C_F","C_F","C_F"]];
-            this.timeLimit = 90000;
+            this.timeLimit = 600000;//10min
             break;
         case "Map_Riddle":
-            this.timeLimit = 30000;
+            this.timeLimit = 600000;//10min
             break;
         default:
             break;
@@ -79,6 +80,7 @@ Room.prototype.initRoom = function() {
 };
 
 Room.prototype.isBothPlayerReady = function() {
+    console.log(this.player1Ready&&this.player2Ready);
     return (this.player1Ready&&this.player2Ready)
 };
 
@@ -87,6 +89,9 @@ Room.prototype.isBothPlayerWrong = function() {
     if (this.player1False&&this.player2False) {
         this.player1False = false;
         this.player2False = false;
+        return true;
+    } else if (this.isSinglePlayer&&this.player1False) {
+        this.player1False = false;
         return true;
     } else {
         return false;
@@ -162,9 +167,9 @@ Room.prototype.destroyRoom= function() {
     this.tictactoePattern = null;
     this.findmePattern    = null;
     this.puzzlePattern    = null;
-    delete this.roomID;
-    delete this.player1;
-    delete this.player2;
+    delete this.roomID           ;
+    delete this.player1          ;
+    delete this.player2          ;
     delete this.status           ;
     delete this.player1Ready     ;
     delete this.player2Ready     ;
@@ -172,10 +177,10 @@ Room.prototype.destroyRoom= function() {
     delete this.rounds           ;
     delete this.playerTurns      ;
     delete this.timeLimit        ;
-    delete this.startTime       ;
+    delete this.startTime        ;
     delete this.player1Points    ;
     delete this.player2Points    ;
-    delete this.questions       ;
+    delete this.questions        ;
     delete this.tictactoePattern ;
     delete this.findmePattern    ;
     delete this.puzzlePattern    ;
@@ -198,7 +203,7 @@ Room.prototype.isGameFinish= function() {
         case "Map_Puzzle":
             //Puzzle ends as all the question are answered, which total point for the map is 8 points.
             console.trace("game finish: " + ((this.player1Points+this.player2Points)));
-            return ((this.player1Points+this.player2Points)===8);
+            return ((this.player1Points+this.player2Points)===9);
             break;
         case "Map_FindMe":
             //FindMe ends as either player1 or player2 found the true card three times.
@@ -428,7 +433,7 @@ function TicTacToe_checkDiagonal(checkedBox) {
 
         let case1 = C1_1&&C1_2&&C1_3&&C1_4;
         let case2 = C2_1&&C2_2&&C2_3&&C2_4;
-        
+
         if (case1||case2) {
             return true;
         }
@@ -438,11 +443,19 @@ function TicTacToe_checkDiagonal(checkedBox) {
         let C1_3 = (checkedBox[2][2]==1);
         let C1_4 = (checkedBox[3][3]==1);
         let C1_5 = (checkedBox[4][4]==1);
-        
+
+        let C2_1 = (checkedBox[0][4]==1);
+        let C2_2 = (checkedBox[1][3]==1);
+        let C2_3 = (checkedBox[2][2]==1);
+        let C2_4 = (checkedBox[3][1]==1);
+        let C2_5 = (checkedBox[4][0]==1);
+
         let case1 = C1_1&&C1_2&&C1_3&&C1_4;
         let case2 = C1_2&&C1_3&&C1_4&&C1_5;
+        let case3 = C2_1&&C2_2&&C2_3&&C2_4;
+        let case4 = C2_2&&C2_3&&C2_4&&C2_5;
 
-        if (case1||case2) {
+        if (case1||case2||case3||case4) {
             return true;
         }
     } else if (D3) {

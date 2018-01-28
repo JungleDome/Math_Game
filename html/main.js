@@ -2,7 +2,6 @@
 var game = new Phaser.Game(400, 600, Phaser.CANVAS, 'game');
 
 game.global = {
-    playSound: true,
     playMusic: true,
     fontStyle: {font: '13pt opensans', align: 'center', boundsAlignH: 'center',boundsAlignV:'middle'},
     scoreFontStyle: {font: '18pt opensans', align: 'center', boundsAlignH: 'center',boundsAlignV:'middle', fontWeight: 'bold'},

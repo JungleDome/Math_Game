@@ -7,8 +7,39 @@ Map_Riddle.defaultFontStyle = {font: '13pt opensans', align: 'center'};
 Map_Riddle.buttonFontStyle = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
 Map_Riddle.captionFontStyle = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
 Map_Riddle.blockInput = false;
+Map_Riddle.isSinglePlayer = false;
+Map_Riddle.questionArray = [];
 
 Map_Riddle.prototype = {
+    wrongMessageBox: function() {
+        color = color || 0x826CFF;
+        border = border || 0x3751E5;
+        var h = 50;
+        var w = game.world.width*0.7;
+        var x = 0;
+        var y = 0;
+        var gameCenterY = game.world.centerY;
+
+        this.popup = game.add.group();
+        this.sprite = game.add.graphics(x, y);
+        this.sprite.name = "sprite";
+        this.captionText = game.add.text(x,y,"Please try again later",Map_Riddle.captionFontStyle);
+        this.captionText.name = "captionText";
+        this.captionText.setTextBounds(0,0,w,h);
+        this.captionText.setShadow(3, 3, 'rgba(0,0,0,0.5)', 10);
+
+        this.sprite.beginFill(border, 1);
+        this.sprite.drawRoundedRect(0,1,w+3,h+2,3);
+        this.sprite.beginFill(color, 1);
+        this.sprite.drawRoundedRect(0, 0, w, h, 4);
+
+        this.popup.addMultiple([this.sprite,this.captionText]);
+        this.popup.y = game.world.centerY;
+        this.popup.x = 60;
+
+        return this.popup;
+    },
+
     createCenterNotification: function(text,color,border) {
         color = color || 0x526CFF;
         border = border || 0x3751E5;
@@ -45,7 +76,6 @@ Map_Riddle.prototype = {
         };
         return this.popup;
     },
-
     createRectangle: function (x, y, w, h, color) {
         color = color || 0xD8DFE8;
         var sprite = game.add.graphics(x, y);
@@ -59,7 +89,54 @@ Map_Riddle.prototype = {
         //BLOCKED:0x2F4C71
         //ACTIVATE:0x526C8E
     },
+    showHintMessageBox: function(text) {
+        function createCircleButton(x,y,d,color,border,text,callback) {
+            color = color?color:0xD8DFE8;
+            border = border?border:0x526C8E;
 
+            var buttonGroup = game.add.group();
+            var buttonText = game.add.text(0,0,text,Map_Riddle.buttonFontStyle);
+            buttonText.setTextBounds(x-d/2,y-d/2,d,d*1.15);
+            var sprite = game.add.graphics(x, y);
+            sprite.beginFill(border, 1);
+            sprite.drawCircle(0,0,d+5);
+            sprite.bounds = new PIXI.Circle(0,0,d+2);
+            sprite.beginFill(color, 1);
+            sprite.drawCircle(0,0,d);
+
+
+            buttonGroup.addMultiple([sprite,buttonText]);
+            sprite.inputEnabled = true;
+            sprite.events.onInputUp.add(callback,this);
+
+            return buttonGroup
+        }
+        var messageFontStyle = {font: '17pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        var fillColor = 0x38D828;
+        var borderColor = 0x526C8E;
+        var width  = 340;
+        var height = 150;
+        var margin = 20;
+        var x = 40;
+
+        var messageGroup = game.add.group();
+        var bgContainer = game.add.graphics(0, 0);
+        bgContainer.beginFill(fillColor, 1);
+        bgContainer.bounds = new PIXI.Rectangle(0, 0, width+2, height+2);
+        bgContainer.drawRoundedRect(2, 2, width-4, height-4, 4);
+        bgContainer.beginFill(borderColor, 1);
+        bgContainer.drawRoundedRect(0,0,width,height,4);
+        var messageText = game.make.text(margin,30,text,messageFontStyle);
+        messageText.setTextBounds(120,30,50,50);
+        var exitButton = createCircleButton(width-20,20,30,fillColor,borderColor,"✖",function() {
+            messageGroup.destroy();
+        });
+
+        messageGroup.addMultiple([bgContainer,messageText,exitButton]);
+        messageGroup.name = "hint_box";
+        messageGroup.x = 35;
+        messageGroup.y = game.world.height-height-40;
+    },
     createPopUp: function (x, y, w, h, color,border,caption,text) {
         //Create button function
         function createCircleButton(x,y,d,color,border,text,callback) {
@@ -67,8 +144,8 @@ Map_Riddle.prototype = {
             border = border?border:0x526C8E;
 
             var buttonGroup = game.add.group();
-            var buttonText = game.add.text(x,y,text,Map_Riddle.buttonFontStyle);
-            buttonText.setTextBounds(0,0,0,0);
+            var buttonText = game.add.text(0,0,text,Map_Riddle.buttonFontStyle);
+            buttonText.setTextBounds(x-d/2,y-d/2,d,d*1.15);
             var sprite = game.add.graphics(x, y);
             sprite.beginFill(border, 1);
             sprite.drawCircle(0,0,d+5);
@@ -103,7 +180,7 @@ Map_Riddle.prototype = {
         sprite.drawRoundedRect(0, 0, w, h, 4);
 
         //Create button
-        var exitButton = createCircleButton(x+(w*0.9),y,30,color,border,"X",function() {
+        var exitButton = createCircleButton(x+(w*0.9),y,30,color,border,"✖",function() {
             popup.destroy();
         });
 
@@ -113,7 +190,6 @@ Map_Riddle.prototype = {
         //BLOCKED:0x2F4C71
         //ACTIVATE:0x526C8E
     },
-
     createAnswerBox: function(x,y,text,selectionText,questionNumber) {
         var fillColor      = 0xA9B8CB;
         var borderColor    = 0x526C8E;
@@ -122,10 +198,10 @@ Map_Riddle.prototype = {
         var choiceFontStyle={font:'13pt opensans',align:'center',fill:'#FFFFFF',fontWeight:'bold'};
         var answerFontStyle={font:'13pt opensans',align:'center',fill:'#FFFFFF'};
 
-        var sprite=game.add.graphics(x, y);
-        var TextRect=game.add.group();
+        var sprite     = game.add.graphics(x, y);
+        var TextRect   = game.add.group();
         var choiceText = game.add.text(0,0,selectionText,choiceFontStyle);
-        var answerText=game.add.text(0,0,text,answerFontStyle);
+        var answerText = game.add.text(0,0,text,answerFontStyle);
 
         TextRect.questionNumber = questionNumber;
         TextRect.answer = String(text);
@@ -159,6 +235,66 @@ Map_Riddle.prototype = {
 
         TextRect.addMultiple([sprite, choiceText, answerText]);
         return TextRect;
+    },
+    showQuestion: function(questionNumber,questionChoices) {
+        var fontStyle = {font: '15pt opensans', align: 'center',fontWeight:'bold'};
+        this.question_group = game.add.group();
+
+        this.question_box    = this.createRectangle(0,0,340,350);
+        this.question_number = game.make.text(5, 10, String(questionNumber).concat('.'), fontStyle);
+        this.question_image  = game.make.sprite(25, 10, 'question-'.concat(questionNumber));
+        this.question_image.width = 300;
+        //this.question_image.height = 340;
+
+        this.question_group.addMultiple([this.question_box,this.question_number, this.question_image]);
+        this.question_group.x = 30;
+        this.question_group.y = 100;
+        this.question_group.name = "Question_Group";
+
+        if (Map_Riddle.isSinglePlayer) {
+
+            this.showHintBtn = game.add.sprite(300, 300, 'hint-ico');
+            this.showHintBtn.scale.setTo(0.13);
+            this.showHintBtn.inputEnabled = true;
+            this.showHintBtn.events.onInputUp.add(function () {
+                Map_Riddle.prototype.showHintMessageBox(Map_Riddle.questionArray[parseInt(questionNumber)-1].questionHint);
+            });
+            this.question_group.add(this.showHintBtn);
+        }
+
+        this.answer_group = game.add.group();
+        this.answer_group.name = "Answer_Group";
+
+        this.answerBox1 = Map_Riddle.prototype.createAnswerBox(0,0,questionChoices[0],"A",questionNumber);
+        this.answerBox2 = Map_Riddle.prototype.createAnswerBox(0,60,questionChoices[1],"B",questionNumber);
+        this.answerBox3 = Map_Riddle.prototype.createAnswerBox(170,0,questionChoices[2],"C",questionNumber);
+        this.answerBox4 = Map_Riddle.prototype.createAnswerBox(170,60,questionChoices[3],"D",questionNumber);
+
+        this.answer_group.addMultiple([this.answerBox1,this.answerBox2,this.answerBox3,this.answerBox4]);
+        this.answer_group.x = this.question_group.x+5;
+        this.answer_group.y = this.question_group.y+this.question_box.height+30;
+
+
+
+        // this.answer1_box   = this.createRectangle(0,0,160,40);
+        // this.answer1_text = game.make.text(5, 5, , Map_Riddle.defaultFontStyle);
+        // this.answer2_box     = this.createRectangle(0,60,160,40);
+        // this.answer2_image = game.make.sprite(0, 60, 'question'.concat(questionNumber).concat('_choice2'));
+        // this.answer3_box     = this.createRectangle(170,0,160,40);
+        // this.answer3_image = game.make.sprite(170, 0, 'question'.concat(questionNumber).concat('_choice3'));
+        // this.answer4_box     = this.createRectangle(170,60,160,40);
+        // this.answer4_image = game.make.sprite(170, 60, 'question'.concat(questionNumber).concat('_choice4'));
+        //this.answer_group.addMultiple([this.answer1_box,this.answer1_image,this.answer2_box,this.answer2_image,this.answer3_box,this.answer3_image,this.answer4_box,this.answer4_image]);
+    },
+
+    hideQuestion:function () {
+        game.world.forEach(function (children) {
+            if (children.name === "Question_Group") {
+                children.destroy();
+            } else if (children.name === "Answer_Group") {
+                children.destroy();
+            }
+        });
     },
 
 	init: function() {
@@ -210,8 +346,6 @@ Map_Riddle.prototype = {
 
 	
 	create: function() {
-        var questionArray = [];
-
         game.stage.backgroundColor = Map_Riddle.backgroundColor;
         game.add.existing(this.menu);
         //game.add.existing(this.score);
@@ -246,16 +380,23 @@ Map_Riddle.prototype = {
                         children.setText(data.room.player2.name);
                         children.update();
                         console.log('(Done)Loading player 2 name');
+                        if (Map_Riddle.isSinglePlayer) {
+                            children.destroy();
+                        }
                     } else if (children.name==="Player1Score") {
                         children.setText(data.room.player1Points);
                     } else if (children.name==="Player2Score") {
                         children.setText(data.room.player2Points);
+                        if (Map_Riddle.isSinglePlayer) {
+                            children.destroy();
+                        }
                     }
                 });
                 //Load Question
                 var loader = new Phaser.Loader(game);
                 for (var i=0;i<Object.keys(data.questions).length;i++) {
-                    questionArray[i] = data.questions[i];
+                    Map_Riddle.questionArray[i] = data.questions[i];
+
                     loader.image('question-'.concat(data.questions[i].questionID),data.questions[i].questionFileName);
 
                     //(Question) {questionID,questionFileName,questionAnswer,questionChoices}
@@ -264,6 +405,8 @@ Map_Riddle.prototype = {
                     console.log('(Done)Loading Questions');
                 });
                 loader.start();
+
+                Map_Riddle.isSinglePlayer = data.room.isSinglePlayer;
                 socket.emit('GAME.ready',{id:game.global.id,socketID:game.global.socketID});
             } else {
                 console.log('(ERROR)No room details returned from server.');
@@ -304,6 +447,10 @@ Map_Riddle.prototype = {
                     children.forEach(function(children2) {
                         if (children2.name===data.choice) {
                             children2.toggleWrong();
+                            var msgBox = Map_Riddle.prototype.wrongMessageBox();
+                            setTimeout(function(msgBox) {
+                                msgBox.destroy();
+                            },2000,msgBox);
                         }
                     });
                 }
@@ -324,7 +471,8 @@ Map_Riddle.prototype = {
         socket.on('GAME.updateQuestion',function(data) {
             Map_Riddle.blockInput = false;
             Map_Riddle.prototype.hideQuestion();
-            Map_Riddle.prototype.showQuestion(questionArray[data.rounds].questionID,questionArray[data.rounds].questionChoices);
+            console.log(Map_Riddle.questionArray);
+            Map_Riddle.prototype.showQuestion(Map_Riddle.questionArray[data.rounds].questionID,Map_Riddle.questionArray[data.rounds].questionChoices);
         });
 
         socket.on('GAME.tick',function(data) {
@@ -337,7 +485,7 @@ Map_Riddle.prototype = {
         });
 
         socket.on('GAME.win',function() {
-            this.gameResult = Map_Puzzle.prototype.createCenterNotification("Game Ends!");
+            this.gameResult = Map_TicTacToe.prototype.createCenterNotification("Victory! :)");
             game.add.existing(this.gameResult);
             this.gameResult.showScreen(this.gameResult,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -351,7 +499,7 @@ Map_Riddle.prototype = {
         });
 
         socket.on('GAME.lose',function() {
-            this.gameStop = Map_Puzzle.prototype.createCenterNotification("Game Ends!");
+            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Defeated :(");
             game.add.existing(this.gameStop);
             this.gameStop.showScreen(this.gameStop,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -365,7 +513,7 @@ Map_Riddle.prototype = {
         });
 
         socket.on('GAME.draw',function() {
-            this.gameStop = Map_Puzzle.prototype.createCenterNotification("Game Ends!");
+            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Draw :|");
             game.add.existing(this.gameStop);
             this.gameStop.showScreen(this.gameStop,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -377,53 +525,5 @@ Map_Riddle.prototype = {
                 setTimeout(this.game.state.start('GameMenu'),3000);
             });
         });
-	},
-
-	showQuestion: function(questionNumber,questionChoices) {
-        var fontStyle = {font: '15pt opensans', align: 'center',fontWeight:'bold'};
-        this.question_group = game.add.group();
-
-        this.question_box    = this.createRectangle(0,0,340,350);
-        this.question_number = game.make.text(5, 10, String(questionNumber).concat('.'), fontStyle);
-        this.question_image  = game.make.sprite(25, 10, 'question-'.concat(questionNumber));
-        this.question_image.width = 300;
-        //this.question_image.height = 340;
-
-        this.question_group.addMultiple([this.question_box,this.question_number, this.question_image]);
-        this.question_group.x = 30;
-        this.question_group.y = 100;
-        this.question_group.name = "Question_Group";
-
-        this.answer_group = game.add.group();
-        this.answer_group.name = "Answer_Group";
-
-        this.answerBox1 = Map_Riddle.prototype.createAnswerBox(0,0,questionChoices[0],"A",questionNumber);
-        this.answerBox2 = Map_Riddle.prototype.createAnswerBox(0,60,questionChoices[1],"B",questionNumber);
-        this.answerBox3 = Map_Riddle.prototype.createAnswerBox(170,0,questionChoices[2],"C",questionNumber);
-        this.answerBox4 = Map_Riddle.prototype.createAnswerBox(170,60,questionChoices[3],"D",questionNumber);
-
-        this.answer_group.addMultiple([this.answerBox1,this.answerBox2,this.answerBox3,this.answerBox4]);
-        this.answer_group.x = this.question_group.x+5;
-        this.answer_group.y = this.question_group.y+this.question_box.height+30;
-
-        // this.answer1_box   = this.createRectangle(0,0,160,40);
-        // this.answer1_text = game.make.text(5, 5, , Map_Riddle.defaultFontStyle);
-        // this.answer2_box     = this.createRectangle(0,60,160,40);
-        // this.answer2_image = game.make.sprite(0, 60, 'question'.concat(questionNumber).concat('_choice2'));
-        // this.answer3_box     = this.createRectangle(170,0,160,40);
-        // this.answer3_image = game.make.sprite(170, 0, 'question'.concat(questionNumber).concat('_choice3'));
-        // this.answer4_box     = this.createRectangle(170,60,160,40);
-        // this.answer4_image = game.make.sprite(170, 60, 'question'.concat(questionNumber).concat('_choice4'));
-        //this.answer_group.addMultiple([this.answer1_box,this.answer1_image,this.answer2_box,this.answer2_image,this.answer3_box,this.answer3_image,this.answer4_box,this.answer4_image]);
-    },
-
-    hideQuestion:function () {
-        game.world.forEach(function (children) {
-            if (children.name === "Question_Group") {
-                children.destroy();
-            } else if (children.name === "Answer_Group") {
-                children.destroy();
-            }
-        });
-    }
+	}
 };

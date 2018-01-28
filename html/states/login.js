@@ -137,7 +137,7 @@ Login.prototype = {
         });
 
         socket.on('PLAYER.loginFailed',function (data) {
-
+            alert('Wrong username/password');
         });
     },
 

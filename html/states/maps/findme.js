@@ -1,11 +1,13 @@
 var Map_FindMe = function (game) {};
-Map_FindMe.box = {width:game.world.width*0.15, height:game.world.width*0.15};
-Map_FindMe.captionFontStyle = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
-Map_FindMe.buttonFontStyle = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
-Map_FindMe.defaultFontStyle = {font: '13pt opensans', align: 'center'};
-Map_FindMe.backgroundColor = '#788DA7';
-Map_FindMe.allowFlip = false;
+Map_FindMe.box                = {width:game.world.width*0.15, height:game.world.width*0.15};
+Map_FindMe.captionFontStyle   = {font: '20pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+Map_FindMe.buttonFontStyle    = {font: '15pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', fill: '#000000',fontWeight:'bold'};
+Map_FindMe.defaultFontStyle   = {font: '13pt opensans', align: 'center'};
+Map_FindMe.backgroundColor    = '#788DA7';
+Map_FindMe.allowFlip          = false;
 Map_FindMe.lastQuestionNumber = 0;
+Map_FindMe.isSinglePlayer     = false;
+Map_FindMe.questionArray      = [];
 
 Map_FindMe.prototype = {
     createCenterNotification: function(text,color,border) {
@@ -52,8 +54,8 @@ Map_FindMe.prototype = {
             border = border?border:0x526C8E;
 
             var buttonGroup = game.add.group();
-            var buttonText = game.add.text(x,y,text,Map_FindMe.buttonFontStyle);
-            buttonText.setTextBounds(0,0,0,0);
+            var buttonText = game.add.text(0,0,text,Map_FindMe.buttonFontStyle);
+            buttonText.setTextBounds(x-d/2,y-d/2,d,d*1.15);
             var sprite = game.add.graphics(x, y);
             sprite.beginFill(border, 1);
             sprite.drawCircle(0,0,d+5);
@@ -88,7 +90,7 @@ Map_FindMe.prototype = {
         sprite.drawRoundedRect(0, 0, w, h, 4);
 
         //Create button
-        var exitButton = createCircleButton(x+(w*0.9),y,30,color,border,"X",function() {
+        var exitButton = createCircleButton(x+(w*0.9),y,30,color,border,"✖",function() {
             popup.destroy();
         });
 
@@ -111,7 +113,54 @@ Map_FindMe.prototype = {
         //BLOCKED:3099761
         //ACTIVATE:5401742
     },
+    showHintMessageBox: function(text) {
+        function createCircleButton(x,y,d,color,border,text,callback) {
+            color = color?color:0xD8DFE8;
+            border = border?border:0x526C8E;
 
+            var buttonGroup = game.add.group();
+            var buttonText = game.add.text(0,0,text,Map_Riddle.buttonFontStyle);
+            buttonText.setTextBounds(x-d/2,y-d/2,d,d*1.15);
+            var sprite = game.add.graphics(x, y);
+            sprite.beginFill(border, 1);
+            sprite.drawCircle(0,0,d+5);
+            sprite.bounds = new PIXI.Circle(0,0,d+2);
+            sprite.beginFill(color, 1);
+            sprite.drawCircle(0,0,d);
+
+
+            buttonGroup.addMultiple([sprite,buttonText]);
+            sprite.inputEnabled = true;
+            sprite.events.onInputUp.add(callback,this);
+
+            return buttonGroup
+        }
+        var messageFontStyle = {font: '17pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        var fillColor = 0x38D828;
+        var borderColor = 0x526C8E;
+        var width  = 340;
+        var height = 150;
+        var margin = 20;
+        var x = 40;
+
+        var messageGroup = game.add.group();
+        var bgContainer = game.add.graphics(0, 0);
+        bgContainer.beginFill(fillColor, 1);
+        bgContainer.bounds = new PIXI.Rectangle(0, 0, width+2, height+2);
+        bgContainer.drawRoundedRect(2, 2, width-4, height-4, 4);
+        bgContainer.beginFill(borderColor, 1);
+        bgContainer.drawRoundedRect(0,0,width,height,4);
+        var messageText = game.make.text(margin,30,text,messageFontStyle);
+        messageText.setTextBounds(120,30,50,50);
+        var exitButton = createCircleButton(width-20,20,30,fillColor,borderColor,"✖",function() {
+            messageGroup.destroy();
+        });
+
+        messageGroup.addMultiple([bgContainer,messageText,exitButton]);
+        messageGroup.name = "hint_box";
+        messageGroup.x = 35;
+        messageGroup.y = game.world.height-height-40;
+    },
     createFlipableBox: function(x, y, boxState,xyLocation,isCorrectCard) {
         //CAUTION: Custom Function for this project!DO NOT USE IN OTHER PLACES//
         var fillColor = 0xD8DFE8;
@@ -197,6 +246,36 @@ Map_FindMe.prototype = {
             }
         });
     },
+    showWrongMessageBox: function() {
+        var messageFontStyle = {font: '17pt opensans', boundsAlignH: 'center',boundsAlignV:'middle', align: 'center', fill: '#000000',fontWeight:'bold'};
+        var fillColor = 0x38D828;
+        var borderColor = 0x526C8E;
+        var width  = 340;
+        var height = 150;
+        var margin = 20;
+
+        var messageGroup = game.add.group();
+        var bgContainer = game.add.graphics(0, 0);
+        bgContainer.beginFill(fillColor, 1);
+        bgContainer.bounds = new PIXI.Rectangle(0, 0, width+2, height+2);
+        bgContainer.drawRoundedRect(2, 2, width-4, height-4, 4);
+        bgContainer.beginFill(borderColor, 1);
+        bgContainer.drawRoundedRect(0,0,width,height,4);
+        var messageText = game.make.text(margin,30,"Please select a box to open.",messageFontStyle);
+        messageText.setTextBounds(120,30,50,50);
+
+        messageGroup.name = "message_box";
+        messageGroup.x = 30;
+        messageGroup.y = game.world.height-25-140;
+        messageGroup.addMultiple([bgContainer,messageText]);
+    },
+    hideWrongMessageBox: function() {
+        game.world.forEach(function (children) {
+            if (children.name === "message_box") {
+                children.destroy();
+            }
+        });
+    },
 
     showPopupQuestion: function(questionNumber) {
         var fillColor = 0xD8DFE8;
@@ -257,23 +336,25 @@ Map_FindMe.prototype = {
         };
 
         questionGroup.toggleBlock = function () {
-            //TODO:Show gui for blocking
             var blockingBox  = game.add.graphics(0, 0);
             blockingBox.beginFill(fillColor, 1);
             blockingBox.bounds = new PIXI.Rectangle(0, 0, width+2, height+2);
             blockingBox.drawRoundedRect(2, 2, width-4, height-4, 4);
             blockingBox.name = "Blocking_Box";
+            var blockingText  = game.make.text(0,0,"Please wait while the opponent is answering the question...",Map_FindMe.captionFontStyle);
+            blockingText.name = "Blocking_Text";
+            blockingText.bounds = new PIXI.Rectangle(0, 0, width+2, height+2);
             questionGroup.add(blockingBox);
+            questionGroup.add(blockingText);
             console.log("ToggleBlock:Blocking");
         };
 
         questionGroup.toggleUnblock = function() {
-            //TODO:Hide blocking gui
             console.log("ToggleUnblock:Unblocking");
             game.world.forEach(function(children) {
                 if (children.name==="question_group") {
                     children.forEach(function(children2) {
-                        if (children2.name==="Blocking_Box") {
+                        if (children2.name==="Blocking_Box"||children2.name==="Blocking_Text") {
                             children2.destroy();
                         }
                     });
@@ -289,6 +370,17 @@ Map_FindMe.prototype = {
         questionGroup.name = "question_group";
         questionGroup.x = 30;
         questionGroup.y = game.world.height-25-140;
+
+        if (Map_FindMe.isSinglePlayer) {
+            var showHintBtn = game.add.sprite(width * 0.52, 43, 'hint-ico');
+            showHintBtn.scale.setTo(0.13);
+            showHintBtn.inputEnabled = true;
+            showHintBtn.events.onInputUp.add(function () {
+                Map_FindMe.prototype.showHintMessageBox(Map_FindMe.questionArray[questionNumber].questionHint);
+            });
+            questionGroup.add(showHintBtn);
+        }
+
         return questionGroup;
     },
     hidePopupQuestion: function() {
@@ -382,14 +474,15 @@ Map_FindMe.prototype = {
 	},
 	
 	create: function() {
-        var questionArray = [];
 
         game.stage.backgroundColor = Map_FindMe.backgroundColor;
         game.add.existing(this.menu);
         game.add.existing(this.timer);
         game.add.existing(this.help);
         game.add.existing(this.player1Name);
+        game.add.existing(this.player1Score);
         game.add.existing(this.player2Name);
+        game.add.existing(this.player2Score);
 
         //
         // this.box_group = game.add.group();
@@ -427,7 +520,7 @@ Map_FindMe.prototype = {
                 //Load Question
                 var loader = new Phaser.Loader(game);
                 for (var i=0;i<Object.keys(data.questions).length;i++) {
-                    questionArray[i] = data.questions[i];
+                    Map_FindMe.questionArray[i] = data.questions[i];
                     loader.image('question-'.concat(data.questions[i].questionID),data.questions[i].questionFileName);
                     //(Question) {questionID,questionFileName,questionAnswer,questionChoices}
                 }
@@ -435,6 +528,8 @@ Map_FindMe.prototype = {
                     console.log('(✓) Loading Questions');
                 });
                 loader.start();
+
+                Map_FindMe.isSinglePlayer = data.room.isSinglePlayer;
                 socket.emit('GAME.ready',{id:game.global.id,socketID:game.global.socketID});
             } else {
                 console.log('(✘)No room details returned from server.');
@@ -481,6 +576,19 @@ Map_FindMe.prototype = {
             Map_FindMe.lastQuestionNumber++;
         });
 
+        socket.on('GAME.updatePoint',function(data) {
+            //data:{player1Points,player2Points}
+            game.world.forEach(function(children) {
+                console.log('GAME.updatePoint');
+                console.log(data);
+                if (children.name==="Player1Score") {
+                    children.setText(data.player1Points);
+                } else if (children.name==="Player2Score") {
+                    children.setText(data.player2Points);
+                }
+            });
+        });
+
         socket.on('GAME.questionBlock',function() {
             console.log("Event:QuestionBlock");
             game.world.forEach(function(children) {
@@ -519,13 +627,17 @@ Map_FindMe.prototype = {
             game.world.forEach(function(children) {
                 if (children.name==="question_group") {
                     children.toggleWrong();
+                    Map_FindMe.prototype.showWrongMessageBox();
+                    setTimeout(function() {
+                        Map_FindMe.prototype.hideWrongMessageBox();
+                    },2000)
                 }
             });
             Map_FindMe.allowFlip = false;
         });
 
         socket.on('GAME.win',function() {
-            this.gameResult = Map_FindMe.prototype.createCenterNotification("Victory! :)");
+            this.gameResult = Map_TicTacToe.prototype.createCenterNotification("Victory! :)");
             game.add.existing(this.gameResult);
             this.gameResult.showScreen(this.gameResult,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -539,7 +651,7 @@ Map_FindMe.prototype = {
         });
 
         socket.on('GAME.lose',function() {
-            this.gameStop = Map_FindMe.prototype.createCenterNotification("Defeated :(");
+            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Defeated :(");
             game.add.existing(this.gameStop);
             this.gameStop.showScreen(this.gameStop,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -553,7 +665,7 @@ Map_FindMe.prototype = {
         });
 
         socket.on('GAME.draw',function() {
-            this.gameStop = Map_FindMe.prototype.createCenterNotification("Game Ends!");
+            this.gameStop = Map_TicTacToe.prototype.createCenterNotification("Draw :|");
             game.add.existing(this.gameStop);
             this.gameStop.showScreen(this.gameStop,function(parent) {
                 this.list = parent.filter(function(child) {
@@ -733,7 +845,7 @@ Map_FindMe.prototype = {
                             var questionNumber = children2.questionNumber;
                             var answer = children2.getAnswer();
                             var xyLocation = children2.location;
-                            socket.emit('PLAYER.answer',{id:game.global.id,socketID:game.global.socketID,location:xyLocation,answer:answer,questionNumber:parseInt(questionNumber+1)});
+                            socket.emit('PLAYER.answer',{id:game.global.id,socketID:game.global.socketID,location:xyLocation,answer:answer,questionID:parseInt(questionNumber+1)});
                             children.destroy();
                         }
                     })
